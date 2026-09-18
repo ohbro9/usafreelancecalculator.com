@@ -3005,15 +3005,27 @@ function setPlatformIntegerInputValue(inputOrId,value){
   const config=getPlatformIntegerInputConfig(input);
   input.value=formatPlatformIntegerInputValue(value,config.allowEmpty);
 }
-function parsePlatformTransactionInputValue(value,allowEmpty){
+function normalizePlatformTransactionInput(value,allowEmpty){
   const cleaned=stripPlatformNumericFormatting(value).replace(/[^0-9.]/g,'');
-  if(!cleaned||cleaned==='.')return allowEmpty?null:0;
-  return Math.max(0,r2(parseFloat(cleaned)||0));
+  if(!cleaned)return{value:allowEmpty?null:0,formatted:allowEmpty?'':'0',canonical:''};
+  const decimalIndex=cleaned.indexOf('.');
+  const wholeDigits=(decimalIndex===-1?cleaned:cleaned.slice(0,decimalIndex)).replace(/\D/g,'');
+  const fractionDigits=(decimalIndex===-1?'':cleaned.slice(decimalIndex+1)).replace(/\D/g,'').slice(0,2);
+  const whole=String(parseInt(wholeDigits||'0',10)||0);
+  const hasDecimal=decimalIndex!==-1;
+  const canonical=whole+(hasDecimal?'.'+fractionDigits:'');
+  const cents=(parseInt(fractionDigits.padEnd(2,'0'),10)||0)/100;
+  return{
+    value:Math.max(0,(parseInt(whole,10)||0)+cents),
+    formatted:Number(whole).toLocaleString('en-US')+(hasDecimal?'.'+fractionDigits:''),
+    canonical:canonical
+  };
+}
+function parsePlatformTransactionInputValue(value,allowEmpty){
+  return normalizePlatformTransactionInput(value,allowEmpty).value;
 }
 function formatPlatformTransactionInputValue(value,allowEmpty){
-  const parsed=parsePlatformTransactionInputValue(value,allowEmpty);
-  if(parsed===null)return'';
-  return parsed.toLocaleString('en-US',{maximumFractionDigits:2});
+  return normalizePlatformTransactionInput(value,allowEmpty).formatted.replace(/\.$/,'');
 }
 function readPlatformTransactionInput(inputOrId){
   const input=typeof inputOrId==='string'?$(inputOrId):inputOrId;
@@ -3057,16 +3069,25 @@ function formatPlatformIntegerInputElement(input){
 function formatPlatformTransactionInputElement(input){
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
-  const raw=stripPlatformNumericFormatting(input.value).replace(/[^0-9.]/g,'');
-  if(!raw||raw==='.'){
-    input.value=raw==='.'?'0.':(config.allowEmpty?'':'0');
-    return;
+  const raw=input.value||'';
+  const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
+  const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty);
+  const normalizedPrefix=normalizePlatformTransactionInput(raw.slice(0,selectionStart),true);
+  const significantBeforeCaret=normalizedPrefix.canonical.length;
+  input.value=normalized.formatted;
+  syncPlatformTransactionInputCaret(input,significantBeforeCaret);
+}
+function syncPlatformTransactionInputCaret(input,significantBeforeCaret){
+  if(!input||typeof input.setSelectionRange!=='function')return;
+  if(significantBeforeCaret<=0){input.setSelectionRange(0,0);return;}
+  const formatted=input.value||'';
+  let seen=0;
+  let caret=formatted.length;
+  for(let i=0;i<formatted.length;i++){
+    if(/[\d.]/.test(formatted.charAt(i)))seen++;
+    if(seen>=significantBeforeCaret){caret=i+1;break;}
   }
-  const decimalIndex=raw.indexOf('.');
-  const whole=(decimalIndex===-1?raw:raw.slice(0,decimalIndex))||'0';
-  const fraction=decimalIndex===-1?'':raw.slice(decimalIndex+1).replace(/\./g,'').slice(0,2);
-  input.value=(parseInt(whole,10)||0).toLocaleString('en-US')
-    +(decimalIndex===-1?'':'.'+fraction);
+  input.setSelectionRange(caret,caret);
 }
 function bindPlatformIntegerMoneyInputs(){
   PFC_INTEGER_MONEY_INPUT_IDS.forEach(function(id){
