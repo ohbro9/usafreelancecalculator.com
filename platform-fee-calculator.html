@@ -3089,6 +3089,38 @@ function syncPlatformIntegerInputCaret(input,digitsBeforeCaret){
   }
   input.setSelectionRange(caret,caret);
 }
+function resolvePlatformPendingDecimalInsert(input,event,pendingDecimal){
+  if(!input||!event||!pendingDecimal)return false;
+  const inserted=typeof event.data==='string'?event.data:'';
+  if(!/^\d+$/.test(inserted)&&inserted!=='.'&&inserted!==',')return false;
+  const config=getPlatformIntegerInputConfig(input);
+  const digits=String(input.value||'').replace(/\D/g,'');
+  const boundary=Math.max(0,Math.min(digits.length,pendingDecimal.wholeDigitCount));
+  const insertedDigits=inserted.replace(/\D/g,'');
+  const resolvedDigits=digits.slice(0,boundary)+insertedDigits+digits.slice(boundary);
+  const resolvedBoundary=boundary+insertedDigits.length;
+  const normalized=normalizePlatformTransactionInput(
+    resolvedDigits.slice(0,resolvedBoundary)+'.'+resolvedDigits.slice(resolvedBoundary),
+    config.allowEmpty
+  );
+  event.preventDefault();
+  input.value=normalized.formatted;
+  input._platformTransactionLiveValue={formatted:input.value,value:normalized.value};
+  input._platformTransactionPendingDecimal=null;
+  input._platformTransactionEditContext=null;
+  if(typeof input.setSelectionRange==='function'){
+    let caret=input.value.indexOf('.');
+    if(insertedDigits)caret=caret<0?input.value.length:caret;
+    else caret=caret<0?input.value.length:caret+1;
+    input.setSelectionRange(caret,caret);
+  }
+  input.dispatchEvent(new InputEvent('input',{
+    bubbles:true,
+    inputType:event.inputType||'insertText',
+    data:inserted
+  }));
+  return true;
+}
 function formatPlatformIntegerInputElement(input){
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
@@ -3119,7 +3151,11 @@ function formatPlatformTransactionInputElement(input,editContext){
       digits.slice(0,wholeDigitCount)+'.'+digits.slice(wholeDigitCount),config.allowEmpty);
     input.value=cleanedRaw;
     input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
-    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    input._platformTransactionPendingDecimal={
+      wholeDigitCount:wholeDigitCount,
+      expectedSelectionStart:selectionStart,
+      intentionalSelection:false
+    };
     if(typeof input.setSelectionRange==='function')input.setSelectionRange(selectionStart,selectionStart);
     return;
   }
@@ -3142,7 +3178,11 @@ function formatPlatformTransactionInputElement(input,editContext){
     const fractionDigits=digits.slice(wholeDigitCount);
     input.value=(parseInt(wholeDigits,10)||0).toLocaleString('en-US')+fractionDigits;
     input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
-    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    input._platformTransactionPendingDecimal={
+      wholeDigitCount:wholeDigitCount,
+      expectedSelectionStart:input.selectionStart,
+      intentionalSelection:false
+    };
     syncPlatformIntegerInputCaret(input,currentDigitsBefore);
     return;
   }
@@ -3213,7 +3253,23 @@ function bindPlatformTransactionMoneyInputs(){
   PFC_TRANSACTION_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
+    const markIntentionalSelection=function(){
+      if(input._platformTransactionPendingDecimal){
+        input._platformTransactionPendingDecimal.intentionalSelection=true;
+      }
+    };
+    input.addEventListener('pointerdown',markIntentionalSelection);
+    input.addEventListener('touchstart',markIntentionalSelection,{passive:true});
+    input.addEventListener('keydown',function(event){
+      if(/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(event.key)){
+        markIntentionalSelection();
+      }
+    });
     input.addEventListener('beforeinput',function(event){
+      const pendingDecimal=this._platformTransactionPendingDecimal||null;
+      if(pendingDecimal&&pendingDecimal.intentionalSelection){
+        this._platformTransactionPendingDecimal=null;
+      }
       this._platformTransactionEditContext={
         value:this.value||'',
         selectionStart:typeof this.selectionStart==='number'?this.selectionStart:(this.value||'').length,
@@ -3222,6 +3278,9 @@ function bindPlatformTransactionMoneyInputs(){
         data:event.data,
         pendingDecimal:this._platformTransactionPendingDecimal||null
       };
+      if(pendingDecimal&&!pendingDecimal.intentionalSelection&&/^insert/.test(event.inputType||'')){
+        resolvePlatformPendingDecimalInsert(this,event,pendingDecimal);
+      }
     });
     input.addEventListener('focus',function(){
       if(readPlatformTransactionInput(this)===0)this.value='';
