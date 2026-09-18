@@ -3007,7 +3007,10 @@ function setPlatformIntegerInputValue(inputOrId,value){
 }
 function normalizePlatformTransactionInput(value,allowEmpty){
   const cleaned=String(value===null||value===undefined?'':value).trim().replace(/[^0-9.,]/g,'');
-  if(!cleaned)return{value:allowEmpty?null:0,formatted:allowEmpty?'':'0',canonical:''};
+  if(!cleaned){
+    const emptyFormatted=allowEmpty?'':'0';
+    return{value:allowEmpty?null:0,formatted:emptyFormatted,liveFormatted:emptyFormatted,canonical:'',cleaned:'',decimalIndex:-1,preserveComma:false};
+  }
   const dotIndexes=[];
   const commaIndexes=[];
   for(let i=0;i<cleaned.length;i++){
@@ -3030,10 +3033,17 @@ function normalizePlatformTransactionInput(value,allowEmpty){
   const hasDecimal=decimalIndex!==-1;
   const canonical=whole+(hasDecimal?'.'+fractionDigits:'');
   const cents=(parseInt(fractionDigits.padEnd(2,'0'),10)||0)/100;
+  const commaDecimal=hasDecimal&&cleaned.charAt(decimalIndex)===',';
+  const preserveComma=commaDecimal&&(fractionDigits.length===0||(wholeDigits.length===1&&fractionDigits.length<=2));
+  const groupedWhole=Number(whole).toLocaleString('en-US');
   return{
     value:Math.max(0,(parseInt(whole,10)||0)+cents),
-    formatted:Number(whole).toLocaleString('en-US')+(hasDecimal?'.'+fractionDigits:''),
-    canonical:canonical
+    formatted:groupedWhole+(hasDecimal?'.'+fractionDigits:''),
+    liveFormatted:groupedWhole+(hasDecimal?(preserveComma?',':'.')+fractionDigits:''),
+    canonical:canonical,
+    cleaned:cleaned,
+    decimalIndex:decimalIndex,
+    preserveComma:preserveComma
   };
 }
 function parsePlatformTransactionInputValue(value,allowEmpty){
@@ -3087,20 +3097,30 @@ function formatPlatformTransactionInputElement(input){
   const raw=input.value||'';
   const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
   const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty);
-  const normalizedPrefix=normalizePlatformTransactionInput(raw.slice(0,selectionStart),true);
-  const significantBeforeCaret=normalizedPrefix.canonical.length;
-  input.value=normalized.formatted;
-  syncPlatformTransactionInputCaret(input,significantBeforeCaret);
+  input.value=normalized.liveFormatted;
+  syncPlatformTransactionInputCaret(input,raw,selectionStart,normalized);
 }
-function syncPlatformTransactionInputCaret(input,significantBeforeCaret){
+function syncPlatformTransactionInputCaret(input,raw,selectionStart,normalized){
   if(!input||typeof input.setSelectionRange!=='function')return;
-  if(significantBeforeCaret<=0){input.setSelectionRange(0,0);return;}
+  const rawBeforeCaret=raw.slice(0,selectionStart);
+  const digitsBeforeCaret=rawBeforeCaret.replace(/\D/g,'').length;
+  if(digitsBeforeCaret<=0){input.setSelectionRange(0,0);return;}
   const formatted=input.value||'';
-  let seen=0;
+  const decimalChar=normalized.preserveComma?',':'.';
+  const decimalPassed=normalized.decimalIndex!==-1&&selectionStart>normalized.decimalIndex;
+  const groupingPassed=selectionStart>0
+    &&/[.,]/.test(raw.charAt(selectionStart-1))
+    &&selectionStart-1!==normalized.decimalIndex;
+  let seenDigits=0;
   let caret=formatted.length;
   for(let i=0;i<formatted.length;i++){
-    if(/[\d.]/.test(formatted.charAt(i)))seen++;
-    if(seen>=significantBeforeCaret){caret=i+1;break;}
+    if(/\d/.test(formatted.charAt(i)))seenDigits++;
+    if(seenDigits>=digitsBeforeCaret){
+      caret=i+1;
+      if(groupingPassed&&formatted.charAt(caret)===',')caret++;
+      if(decimalPassed&&formatted.charAt(caret)===decimalChar)caret++;
+      break;
+    }
   }
   input.setSelectionRange(caret,caret);
 }
