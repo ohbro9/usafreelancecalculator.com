@@ -3123,6 +3123,29 @@ function formatPlatformTransactionInputElement(input,editContext){
     if(typeof input.setSelectionRange==='function')input.setSelectionRange(selectionStart,selectionStart);
     return;
   }
+  const pendingDecimal=editContext&&editContext.pendingDecimal;
+  const resolvesPendingDecimal=editContext&&/[.,]/.test(editContext.data||'');
+  if(pendingDecimal&&!resolvesPendingDecimal&&!cleanedRaw.includes('.')){
+    const previousSelectionStart=Number.isInteger(editContext.selectionStart)
+      ?editContext.selectionStart:previousRaw.length;
+    const previousDigitsBefore=previousRaw.slice(0,previousSelectionStart).replace(/\D/g,'').length;
+    const currentDigitsBefore=raw.slice(0,selectionStart).replace(/\D/g,'').length;
+    const digits=cleanedRaw.replace(/\D/g,'');
+    let wholeDigitCount=pendingDecimal.wholeDigitCount;
+    if(previousDigitsBefore<=wholeDigitCount){
+      wholeDigitCount+=currentDigitsBefore-previousDigitsBefore;
+    }
+    wholeDigitCount=Math.max(0,Math.min(digits.length,wholeDigitCount));
+    const virtualValue=normalizePlatformTransactionInput(
+      digits.slice(0,wholeDigitCount)+'.'+digits.slice(wholeDigitCount),config.allowEmpty);
+    const wholeDigits=digits.slice(0,wholeDigitCount)||'0';
+    const fractionDigits=digits.slice(wholeDigitCount);
+    input.value=(parseInt(wholeDigits,10)||0).toLocaleString('en-US')+fractionDigits;
+    input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
+    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    syncPlatformIntegerInputCaret(input,currentDigitsBefore);
+    return;
+  }
   const singleCommaIndex=cleanedRaw.indexOf(',');
   const insertedInsideAmbiguousComma=singleCommaIndex!==-1
     &&singleCommaIndex===cleanedRaw.lastIndexOf(',')
