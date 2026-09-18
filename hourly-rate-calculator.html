@@ -3620,7 +3620,7 @@ function calcRev(){
             :('Estimated yearly take-home after '+taxPctText+' tax at the required rate');
         setVal('rnDaily',Math.round(dailyNetAmount));setVal('rnWeekly',Math.round(weeklyNetAmount));setVal('rnMonthly',Math.round(monthlyNetAmount));setVal('rnYearly',Math.round(annualNetAmount));
         $('rnCutD').textContent=cutLabel+': '+fmt(dailyTaxAmount);$('rnCutW').textContent=cutLabel+': '+fmt(weeklyTaxAmount);$('rnCutM').textContent=cutLabel+': '+fmt(monthlyTaxAmount);$('rnCutY').textContent=cutLabel+': '+fmt(annualTaxAmount);
-        var nh2=Math.round(needed*(1-effectiveTaxRatio)*100)/100;$('revNetHourly').textContent='≈ $'+nh2.toFixed(2)+'/hr '+netSuffix+' (effective net hourly)';
+        var nh2=Math.round(n2*(1-effectiveTaxRatio)*100)/100;$('revNetHourly').textContent='≈ $'+nh2.toFixed(2)+'/hr '+netSuffix+' (effective net hourly)';
     }
 
     updateRevSummary(n2,tgtY,billR,wpy,method,isA,taxRate);
