@@ -3006,9 +3006,24 @@ function setPlatformIntegerInputValue(inputOrId,value){
   input.value=formatPlatformIntegerInputValue(value,config.allowEmpty);
 }
 function normalizePlatformTransactionInput(value,allowEmpty){
-  const cleaned=stripPlatformNumericFormatting(value).replace(/[^0-9.]/g,'');
+  const cleaned=String(value===null||value===undefined?'':value).trim().replace(/[^0-9.,]/g,'');
   if(!cleaned)return{value:allowEmpty?null:0,formatted:allowEmpty?'':'0',canonical:''};
-  const decimalIndex=cleaned.indexOf('.');
+  const dotIndexes=[];
+  const commaIndexes=[];
+  for(let i=0;i<cleaned.length;i++){
+    if(cleaned.charAt(i)==='.')dotIndexes.push(i);
+    if(cleaned.charAt(i)===',')commaIndexes.push(i);
+  }
+  let decimalIndex=-1;
+  if(dotIndexes.length&&commaIndexes.length){
+    decimalIndex=Math.max(dotIndexes[dotIndexes.length-1],commaIndexes[commaIndexes.length-1]);
+  }else if(dotIndexes.length){
+    decimalIndex=dotIndexes[0];
+  }else if(commaIndexes.length){
+    const lastComma=commaIndexes[commaIndexes.length-1];
+    const trailingDigits=cleaned.slice(lastComma+1).replace(/\D/g,'').length;
+    if(trailingDigits<=2)decimalIndex=lastComma;
+  }
   const wholeDigits=(decimalIndex===-1?cleaned:cleaned.slice(0,decimalIndex)).replace(/\D/g,'');
   const fractionDigits=(decimalIndex===-1?'':cleaned.slice(decimalIndex+1)).replace(/\D/g,'').slice(0,2);
   const whole=String(parseInt(wholeDigits||'0',10)||0);
