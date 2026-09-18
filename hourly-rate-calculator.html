@@ -3448,7 +3448,7 @@ function calcFwd(){
     var taxPctText=taxOn
         ?(fwdTaxMode==='smart'?formatTaxPctDisplay(taxRate):formatTaxPctDisplay(getForwardManualPct()))
         :formatTaxPctDisplay(0);
-    window.__gross={day:Math.round(d),week:Math.round(w),month:Math.round(m),year:Math.round(y)};updateFwdUI();
+    window.__gross={day:d,week:w,month:m,year:y};updateFwdUI();
     setVal('rDaily',d);setVal('rWeekly',w);setVal('rMonthly',m);setVal('rYearly',y);
     setVal('rateVal',rate,{decimals:2,suffix:'/hr'});
     $('rateSub').textContent=bill<1?'Based on '+Math.round(bill*100)+'% billable':'Preset-driven estimate with clear earnings visibility.';
@@ -3594,7 +3594,7 @@ function calcRev(){
     }
     setVal('rrDaily',Math.round(d));setVal('rrWeekly',Math.round(w));setVal('rrMonthly',Math.round(m));setVal('rrYearly',Math.round(y));
 
-    window.__gross={day:Math.round(d),week:Math.round(w),month:Math.round(m),year:Math.round(y)};updateFwdUI();
+    window.__gross={day:d,week:w,month:m,year:y};updateFwdUI();
 
     // Also update fwd hero hidden values for copy
     setVal('rDaily',Math.round(d));setVal('rWeekly',Math.round(w));setVal('rMonthly',Math.round(m));setVal('rYearly',Math.round(y));
