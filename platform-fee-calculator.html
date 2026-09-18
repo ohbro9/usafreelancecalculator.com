@@ -3005,7 +3005,7 @@ function setPlatformIntegerInputValue(inputOrId,value){
   const config=getPlatformIntegerInputConfig(input);
   input.value=formatPlatformIntegerInputValue(value,config.allowEmpty);
 }
-function normalizePlatformTransactionInput(value,allowEmpty){
+function normalizePlatformTransactionInput(value,allowEmpty,options){
   const cleaned=String(value===null||value===undefined?'':value).trim().replace(/[^0-9.,]/g,'');
   if(!cleaned){
     const emptyFormatted=allowEmpty?'':'0';
@@ -3027,6 +3027,7 @@ function normalizePlatformTransactionInput(value,allowEmpty){
     const trailingDigits=cleaned.slice(lastComma+1).replace(/\D/g,'').length;
     if(trailingDigits<=2)decimalIndex=lastComma;
   }
+  if(options&&Number.isInteger(options.decimalIndex))decimalIndex=options.decimalIndex;
   const wholeDigits=(decimalIndex===-1?cleaned:cleaned.slice(0,decimalIndex)).replace(/\D/g,'');
   const fractionDigits=(decimalIndex===-1?'':cleaned.slice(decimalIndex+1)).replace(/\D/g,'').slice(0,2);
   const whole=String(parseInt(wholeDigits||'0',10)||0);
@@ -3034,7 +3035,7 @@ function normalizePlatformTransactionInput(value,allowEmpty){
   const canonical=whole+(hasDecimal?'.'+fractionDigits:'');
   const cents=(parseInt(fractionDigits.padEnd(2,'0'),10)||0)/100;
   const commaDecimal=hasDecimal&&cleaned.charAt(decimalIndex)===',';
-  const preserveComma=commaDecimal&&(fractionDigits.length===0||(wholeDigits.length===1&&fractionDigits.length<=2));
+  const preserveComma=commaDecimal&&(fractionDigits.length===0||(wholeDigits.length<=3&&fractionDigits.length<=2));
   const groupedWhole=Number(whole).toLocaleString('en-US');
   return{
     value:Math.max(0,(parseInt(whole,10)||0)+cents),
@@ -3096,7 +3097,15 @@ function formatPlatformTransactionInputElement(input){
   const config=getPlatformIntegerInputConfig(input);
   const raw=input.value||'';
   const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
-  const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty);
+  const cleanedRaw=String(raw).replace(/[^0-9.,]/g,'');
+  const singleCommaIndex=cleanedRaw.indexOf(',');
+  const insertedInsideAmbiguousComma=singleCommaIndex!==-1
+    &&singleCommaIndex===cleanedRaw.lastIndexOf(',')
+    &&cleanedRaw.indexOf('.')===-1
+    &&cleanedRaw.slice(singleCommaIndex+1).replace(/\D/g,'').length>2
+    &&selectionStart<raw.length;
+  const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty,
+    insertedInsideAmbiguousComma?{decimalIndex:singleCommaIndex}:null);
   input.value=normalized.liveFormatted;
   syncPlatformTransactionInputCaret(input,raw,selectionStart,normalized);
 }
