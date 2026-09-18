@@ -3056,6 +3056,10 @@ function formatPlatformTransactionInputValue(value,allowEmpty){
 function readPlatformTransactionInput(inputOrId){
   const input=typeof inputOrId==='string'?$(inputOrId):inputOrId;
   if(!input)return 0;
+  if(input._platformTransactionLiveValue
+    &&input._platformTransactionLiveValue.formatted===input.value){
+    return input._platformTransactionLiveValue.value;
+  }
   const config=getPlatformIntegerInputConfig(input);
   return parsePlatformTransactionInputValue(input.value,config.allowEmpty);
 }
@@ -3064,6 +3068,8 @@ function setPlatformTransactionInputValue(inputOrId,value){
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
   input.value=formatPlatformTransactionInputValue(value,config.allowEmpty);
+  input._platformTransactionLiveValue=null;
+  input._platformTransactionPendingDecimal=null;
 }
 function syncPlatformIntegerInputCaret(input,digitsBeforeCaret){
   if(!input||typeof input.setSelectionRange!=='function')return;
@@ -3092,21 +3098,43 @@ function formatPlatformIntegerInputElement(input){
   input.value=formatPlatformIntegerInputValue(raw,config.allowEmpty);
   syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
 }
-function formatPlatformTransactionInputElement(input){
+function formatPlatformTransactionInputElement(input,editContext){
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
   const raw=input.value||'';
   const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
   const cleanedRaw=String(raw).replace(/[^0-9.,]/g,'');
+  const previousRaw=editContext&&typeof editContext.value==='string'?editContext.value:'';
+  const deletedDecimalFromGroupedValue=!!(editContext
+    &&/^delete/.test(editContext.inputType||'')
+    &&previousRaw.includes(',')
+    &&previousRaw.includes('.')
+    &&!cleanedRaw.includes('.')
+    &&cleanedRaw.includes(','));
+  if(deletedDecimalFromGroupedValue){
+    const previousDecimalIndex=previousRaw.lastIndexOf('.');
+    const wholeDigitCount=previousRaw.slice(0,previousDecimalIndex).replace(/\D/g,'').length;
+    const digits=cleanedRaw.replace(/\D/g,'');
+    const virtualValue=normalizePlatformTransactionInput(
+      digits.slice(0,wholeDigitCount)+'.'+digits.slice(wholeDigitCount),config.allowEmpty);
+    input.value=cleanedRaw;
+    input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
+    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    if(typeof input.setSelectionRange==='function')input.setSelectionRange(selectionStart,selectionStart);
+    return;
+  }
   const singleCommaIndex=cleanedRaw.indexOf(',');
   const insertedInsideAmbiguousComma=singleCommaIndex!==-1
     &&singleCommaIndex===cleanedRaw.lastIndexOf(',')
     &&cleanedRaw.indexOf('.')===-1
     &&cleanedRaw.slice(singleCommaIndex+1).replace(/\D/g,'').length>2
     &&selectionStart<raw.length;
-  const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty,
-    insertedInsideAmbiguousComma?{decimalIndex:singleCommaIndex}:null);
+  let normalizationOptions=null;
+  if(insertedInsideAmbiguousComma)normalizationOptions={decimalIndex:singleCommaIndex};
+  const normalized=normalizePlatformTransactionInput(raw,config.allowEmpty,normalizationOptions);
   input.value=normalized.liveFormatted;
+  input._platformTransactionLiveValue={formatted:input.value,value:normalized.value};
+  input._platformTransactionPendingDecimal=null;
   syncPlatformTransactionInputCaret(input,raw,selectionStart,normalized);
 }
 function syncPlatformTransactionInputCaret(input,raw,selectionStart,normalized){
@@ -3162,6 +3190,16 @@ function bindPlatformTransactionMoneyInputs(){
   PFC_TRANSACTION_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
+    input.addEventListener('beforeinput',function(event){
+      this._platformTransactionEditContext={
+        value:this.value||'',
+        selectionStart:typeof this.selectionStart==='number'?this.selectionStart:(this.value||'').length,
+        selectionEnd:typeof this.selectionEnd==='number'?this.selectionEnd:(this.value||'').length,
+        inputType:event.inputType||'',
+        data:event.data,
+        pendingDecimal:this._platformTransactionPendingDecimal||null
+      };
+    });
     input.addEventListener('focus',function(){
       if(readPlatformTransactionInput(this)===0)this.value='';
     });
@@ -3170,6 +3208,11 @@ function bindPlatformTransactionMoneyInputs(){
       const config=getPlatformIntegerInputConfig(this);
       if(raw===''){
         this.value=config.emptyFallback===''?'':formatPlatformTransactionInputValue(config.emptyFallback,false);
+        return;
+      }
+      if(this._platformTransactionPendingDecimal){
+        setPlatformTransactionInputValue(this,readPlatformTransactionInput(this));
+        this._platformTransactionPendingDecimal=null;
         return;
       }
       formatPlatformTransactionInputElement(this);
@@ -5511,7 +5554,8 @@ document.getElementById('customFeeInput').addEventListener('input',function(){
 });
 
 $('amtGross').addEventListener('input',function(){
-  formatPlatformTransactionInputElement(this);
+  formatPlatformTransactionInputElement(this,this._platformTransactionEditContext);
+  this._platformTransactionEditContext=null;
   if(_autofillActive){
     const edited=(readPlatformTransactionInput(this)||0)!==_autofillOriginalValue;
     const eel=$('autofillEdited');if(eel)eel.style.display=edited?'inline':'none';
@@ -5519,7 +5563,8 @@ $('amtGross').addEventListener('input',function(){
   calc();
 });
 $('amtNet').addEventListener('input',function(){
-  formatPlatformTransactionInputElement(this);
+  formatPlatformTransactionInputElement(this,this._platformTransactionEditContext);
+  this._platformTransactionEditContext=null;
   calc();
 });
 $('procToggle').addEventListener('change',()=>{syncProc();updateCards();calc();});
