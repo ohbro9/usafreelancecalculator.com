@@ -5519,7 +5519,7 @@
 	          } else {
 	            seTaxAnnual = profitAnnual * manualSeRate;
 	          }
-	          halfSeDeductionAnnual = seTaxAnnual / 2;
+	          halfSeDeductionAnnual = (seTaxAnnual - additionalMedicareTaxAnnual) / 2;
 	        }
 
 	        if (state.taxMode === 'smart') {
