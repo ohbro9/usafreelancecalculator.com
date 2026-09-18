@@ -3550,7 +3550,7 @@ function calcRev(){
     var grossY=isA
         ?(revTaxMode==='smart'&&reverseSolve?reverseSolve.grossAnnualExact:(tgtY/(1-taxRate/100)))
         :tgtY;
-    var hrs=hpd*dpw*wpy*billR;var needed=hrs>0?(grossY/hrs):0;var n2=Math.round(needed*100)/100;
+    var hrs=hpd*dpw*wpy*billR;var needed=hrs>0?(grossY/hrs):0;var n2=Math.ceil(needed*100-1e-9)/100;
 
     // Blue hero
     $('revBlueRate').textContent=hrs>0?'$'+n2.toFixed(2)+'/hr':'—';
@@ -3562,7 +3562,18 @@ function calcRev(){
             :('Required gross output to hit your take-home goal after '+taxPctTextForBlue+' tax • '+Math.round(billR*100)+'% billable • '+wpy+' weeks/year'));
     $('revBillBadge').textContent=Math.round(billR*100)+'% Billable';
 
-    var d=needed*hpd*billR,w=d*dpw,y=w*wpy;var m=method==='avg'?(y/12):(w*(52/12));
+    var d=n2*hpd*billR,w=d*dpw,y=w*wpy;var m=method==='avg'?(y/12):(w*(52/12));
+    if(isA&&revTaxMode==='smart'){
+        reverseTaxModel=getHourlySmartTaxModel({
+            annualGross:y,
+            monthlyBusinessExpenses:0,
+            filingStatus:revFilingStatus,
+            taxRegion:revTaxRegion
+        });
+        renderReverseTaxControls(reverseTaxModel,isA);
+        taxRate=setReverseTaxLegacyRate(reverseTaxModel);
+        renderReverseResultCopy({isAfterTax:isA,taxRate:taxRate,taxPctText:formatTaxPctDisplay(taxRate)});
+    }
     setVal('rrDaily',Math.round(d));setVal('rrWeekly',Math.round(w));setVal('rrMonthly',Math.round(m));setVal('rrYearly',Math.round(y));
 
     window.__gross={day:d,week:w,month:m,year:y};updateFwdUI();
@@ -3571,7 +3582,7 @@ function calcRev(){
     setVal('rDaily',Math.round(d));setVal('rWeekly',Math.round(w));setVal('rMonthly',Math.round(m));setVal('rYearly',Math.round(y));
 
     var effectiveTaxRatio=isA?(taxRate/100):0;
-    var annualTaxAmount=isA?roundMoney(y*effectiveTaxRatio):0;
+    var annualTaxAmount=isA?roundMoney(revTaxMode==='smart'&&reverseTaxModel?reverseTaxModel.annualTax:y*effectiveTaxRatio):0;
     var dailyTaxAmount=isA?roundMoney(d*effectiveTaxRatio):0;
     var weeklyTaxAmount=isA?roundMoney(w*effectiveTaxRatio):0;
     var monthlyTaxAmount=isA?roundMoney(m*effectiveTaxRatio):0;
@@ -3591,7 +3602,7 @@ function calcRev(){
             :('Estimated yearly take-home after '+taxPctText+' tax at the required rate');
         setVal('rnDaily',Math.round(dailyNetAmount));setVal('rnWeekly',Math.round(weeklyNetAmount));setVal('rnMonthly',Math.round(monthlyNetAmount));setVal('rnYearly',Math.round(annualNetAmount));
         $('rnCutD').textContent=cutLabel+': '+fmt(dailyTaxAmount);$('rnCutW').textContent=cutLabel+': '+fmt(weeklyTaxAmount);$('rnCutM').textContent=cutLabel+': '+fmt(monthlyTaxAmount);$('rnCutY').textContent=cutLabel+': '+fmt(annualTaxAmount);
-        var nh2=Math.round(needed*(1-effectiveTaxRatio)*100)/100;$('revNetHourly').textContent='≈ $'+nh2.toFixed(2)+'/hr '+netSuffix+' (effective net hourly)';
+        var nh2=Math.round(n2*(1-effectiveTaxRatio)*100)/100;$('revNetHourly').textContent='≈ $'+nh2.toFixed(2)+'/hr '+netSuffix+' (effective net hourly)';
     }
 
     updateRevSummary(n2,tgtY,billR,wpy,method,isA,taxRate);
