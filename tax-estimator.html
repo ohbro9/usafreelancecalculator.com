@@ -2607,11 +2607,12 @@ function applyDependentCreditPhaseout(rawCTC, rawODC, phaseoutBase, status) {
   const excess = Math.max(0, phaseoutBase - threshold);
   const units = excess > 0 ? Math.ceil(excess / 1000) : 0;
   const reduction = units * 50;
-  // Schedule 8812 reduces the child credit before the ODC. Keeping the pools
-  // separate prevents a nonrefundable ODC balance from becoming refundable.
-  const phasedCTC = Math.max(0, rawCTC - reduction);
-  const remainingReduction = Math.max(0, reduction - rawCTC);
-  const phasedODC = Math.max(0, rawODC - remainingReduction);
+  // Schedule 8812 phases down the combined credit. Allocate that reduction to
+  // nonrefundable ODC first so the remaining child-credit pool is available
+  // for ACTC, while never treating any ODC amount as refundable.
+  const phasedODC = Math.max(0, rawODC - reduction);
+  const remainingReduction = Math.max(0, reduction - rawODC);
+  const phasedCTC = Math.max(0, rawCTC - remainingReduction);
   return {
     threshold,
     reduction,

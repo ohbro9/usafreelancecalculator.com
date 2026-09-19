@@ -54,6 +54,10 @@ let credits = tax.getDependentTaxCredits({ year: 2025, status: 'single', totalDe
 assert.deepEqual([credits.nonrefundableCTC, credits.odc, credits.actcEstimate, credits.federalTaxAfterCredits], [2200, 0, 0, 800]);
 credits = tax.getDependentTaxCredits({ year: 2026, status: 'single', totalDependents: 1, otherDependents: 1, phaseoutBase: 60000, federalBeforeCredits: 0, earnedIncome: 40000 });
 assert.deepEqual([credits.nonrefundableCTC, credits.odc, credits.actcEstimate, credits.federalTaxAfterCredits], [0, 0, 0, 0]);
+credits = tax.getDependentTaxCredits({ year: 2025, status: 'single', totalDependents: 2, otherDependents: 1, phaseoutBase: 220000, federalBeforeCredits: 0, earnedIncome: 220000 });
+assert.deepEqual([credits.phaseout.creditAfterPhaseout, credits.phaseout.phasedCTC, credits.phaseout.phasedODC, credits.actcEstimate], [1700, 1700, 0, 1700]);
+credits = tax.getDependentTaxCredits({ year: 2025, status: 'single', totalDependents: 2, otherDependents: 1, phaseoutBase: 220000, federalBeforeCredits: 300, earnedIncome: 220000 });
+assert.deepEqual([credits.phaseout.creditAfterPhaseout, credits.nonrefundableCTC, credits.odc, credits.actcEstimate, credits.federalTaxAfterCredits], [1700, 300, 0, 1400, 0]);
 credits = tax.getDependentTaxCredits({ year: 2026, status: 'mfj', totalDependents: 2, otherDependents: 1, phaseoutBase: 100000, federalBeforeCredits: 2500, earnedIncome: 50000 });
 assert.deepEqual([credits.nonrefundableCTC, credits.odc, credits.actcEstimate, credits.federalTaxAfterCredits], [2000, 500, 200, 0]);
 credits = tax.getDependentTaxCredits({ year: 2025, status: 'single', totalDependents: 1, otherDependents: 0, phaseoutBase: 30000, federalBeforeCredits: 200, earnedIncome: 20000 });
