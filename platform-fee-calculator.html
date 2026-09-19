@@ -3089,6 +3089,53 @@ function syncPlatformIntegerInputCaret(input,digitsBeforeCaret){
   }
   input.setSelectionRange(caret,caret);
 }
+function resolvePlatformPendingDecimalInsert(input,event,pendingDecimal){
+  if(!input||!event||!pendingDecimal)return false;
+  const inserted=typeof event.data==='string'?event.data:'';
+  if(!/^\d+$/.test(inserted)&&inserted!=='.'&&inserted!==',')return false;
+  const config=getPlatformIntegerInputConfig(input);
+  const digits=String(input.value||'').replace(/\D/g,'');
+  const savedBoundary=Math.max(0,Math.min(digits.length,pendingDecimal.wholeDigitCount));
+  const insertedDigits=inserted.replace(/\D/g,'');
+  const useCurrentSelection=!!pendingDecimal.intentionalSelection;
+  const selectionStart=useCurrentSelection&&typeof input.selectionStart==='number'
+    ?input.selectionStart:pendingDecimal.expectedSelectionStart;
+  const selectionEnd=useCurrentSelection&&typeof input.selectionEnd==='number'
+    ?input.selectionEnd:selectionStart;
+  const digitStart=useCurrentSelection
+    ?String(input.value||'').slice(0,selectionStart).replace(/\D/g,'').length:savedBoundary;
+  const digitEnd=useCurrentSelection
+    ?String(input.value||'').slice(0,selectionEnd).replace(/\D/g,'').length:digitStart;
+  const resolvedDigits=digits.slice(0,digitStart)+insertedDigits+digits.slice(digitEnd);
+  const removedBeforeBoundary=Math.max(0,Math.min(digitEnd,savedBoundary)-Math.min(digitStart,savedBoundary));
+  const resolvedBoundary=Math.max(0,savedBoundary-removedBeforeBoundary
+    +(digitStart<=savedBoundary?insertedDigits.length:0));
+  const normalized=normalizePlatformTransactionInput(
+    resolvedDigits.slice(0,resolvedBoundary)+'.'+resolvedDigits.slice(resolvedBoundary),
+    config.allowEmpty
+  );
+  event.preventDefault();
+  input.value=normalized.formatted;
+  input._platformTransactionLiveValue={formatted:input.value,value:normalized.value};
+  input._platformTransactionPendingDecimal=null;
+  input._platformTransactionEditContext=null;
+  if(typeof input.setSelectionRange==='function'){
+    if(useCurrentSelection&&insertedDigits){
+      syncPlatformIntegerInputCaret(input,digitStart+insertedDigits.length);
+    }else{
+      let caret=input.value.indexOf('.');
+      if(insertedDigits)caret=caret<0?input.value.length:caret;
+      else caret=caret<0?input.value.length:caret+1;
+      input.setSelectionRange(caret,caret);
+    }
+  }
+  input.dispatchEvent(new InputEvent('input',{
+    bubbles:true,
+    inputType:event.inputType||'insertText',
+    data:inserted
+  }));
+  return true;
+}
 function formatPlatformIntegerInputElement(input){
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
@@ -3119,7 +3166,11 @@ function formatPlatformTransactionInputElement(input,editContext){
       digits.slice(0,wholeDigitCount)+'.'+digits.slice(wholeDigitCount),config.allowEmpty);
     input.value=cleanedRaw;
     input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
-    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    input._platformTransactionPendingDecimal={
+      wholeDigitCount:wholeDigitCount,
+      expectedSelectionStart:selectionStart,
+      intentionalSelection:false
+    };
     if(typeof input.setSelectionRange==='function')input.setSelectionRange(selectionStart,selectionStart);
     return;
   }
@@ -3142,7 +3193,11 @@ function formatPlatformTransactionInputElement(input,editContext){
     const fractionDigits=digits.slice(wholeDigitCount);
     input.value=(parseInt(wholeDigits,10)||0).toLocaleString('en-US')+fractionDigits;
     input._platformTransactionLiveValue={formatted:input.value,value:virtualValue.value};
-    input._platformTransactionPendingDecimal={wholeDigitCount:wholeDigitCount};
+    input._platformTransactionPendingDecimal={
+      wholeDigitCount:wholeDigitCount,
+      expectedSelectionStart:input.selectionStart,
+      intentionalSelection:false
+    };
     syncPlatformIntegerInputCaret(input,currentDigitsBefore);
     return;
   }
@@ -3213,7 +3268,31 @@ function bindPlatformTransactionMoneyInputs(){
   PFC_TRANSACTION_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
+    const markIntentionalSelectionIfMoved=function(){
+      const pendingDecimal=input._platformTransactionPendingDecimal;
+      if(!pendingDecimal)return;
+      const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:null;
+      const selectionEnd=typeof input.selectionEnd==='number'?input.selectionEnd:null;
+      pendingDecimal.intentionalSelection=selectionStart!==pendingDecimal.expectedSelectionStart
+        ||selectionEnd!==pendingDecimal.expectedSelectionStart;
+    };
+    input.addEventListener('pointerup',markIntentionalSelectionIfMoved);
+    input.addEventListener('touchend',markIntentionalSelectionIfMoved,{passive:true});
+    input.addEventListener('click',markIntentionalSelectionIfMoved);
+    input.addEventListener('keydown',function(event){
+      if(/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(event.key)){
+        input._platformTransactionSelectionKey=true;
+      }
+    });
+    input.addEventListener('keyup',function(event){
+      if(input._platformTransactionSelectionKey
+        &&/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(event.key)){
+        input._platformTransactionSelectionKey=false;
+        markIntentionalSelectionIfMoved();
+      }
+    });
     input.addEventListener('beforeinput',function(event){
+      const pendingDecimal=this._platformTransactionPendingDecimal||null;
       this._platformTransactionEditContext={
         value:this.value||'',
         selectionStart:typeof this.selectionStart==='number'?this.selectionStart:(this.value||'').length,
@@ -3222,6 +3301,9 @@ function bindPlatformTransactionMoneyInputs(){
         data:event.data,
         pendingDecimal:this._platformTransactionPendingDecimal||null
       };
+      if(pendingDecimal&&/^insert/.test(event.inputType||'')){
+        resolvePlatformPendingDecimalInsert(this,event,pendingDecimal);
+      }
     });
     input.addEventListener('focus',function(){
       if(readPlatformTransactionInput(this)===0)this.value='';
