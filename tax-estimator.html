@@ -5410,7 +5410,7 @@ function downloadPDF() {
   }
   if (num(r.usedDeduction) > 0) taxRows.push([r.usedDeductionMode === 'itemized' ? 'Itemized deduction (est.)' : 'Standard deduction', signed(-r.usedDeduction), 'negative']);
   if (num(r.niit) > 0) taxRows.push(['NIIT (3.8% estimate)', fd(r.niit), 'normal']);
-  taxRows.push([r.sCorpOn ? 'Payroll tax on owner salary' : 'Self-employment tax', fd(payrollMain), 'normal']);
+  taxRows.push([r.sCorpOn ? 'Payroll tax on owner salary' : (num(r.yourW2) + num(r.spouseW2) > 0 ? 'W-2 + Self-Employment Payroll Taxes' : 'Self-employment tax'), fd(payrollMain), 'normal']);
   if (amed > 0) taxRows.push(['Additional Medicare tax', fd(amed), 'normal']);
   if (r.stateOn) taxRows.push([stateLabel, fd(r.stateTax), 'normal']);
   if (r.sCorpOn && sCorpExtra > 0) taxRows.push(['S-Corp admin + employer payroll', signed(-sCorpExtra), 'negative']);
