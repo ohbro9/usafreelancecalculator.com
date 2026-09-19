@@ -27,6 +27,7 @@ assert.ok(taxDataStart >= 0 && taxDataEnd > taxDataStart, '2026 tax data block i
 const context = {
   console,
   window: {},
+  document: { querySelectorAll() { return []; } },
   taxMode: 'smart',
   manualTaxPct: 30,
   smartTaxBreakdown: null,
@@ -35,6 +36,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(`
+function fmt(value) { return '$' + Number(value).toFixed(2); }
 ${html.slice(taxDataStart, taxDataEnd)}
 ${[
   'clampTaxPct', 'formatTaxPct', 'getManualTaxPct', 'calcProgressiveTax',
@@ -42,11 +44,15 @@ ${[
   'calcPlannerStateTax', 'calcSmartTaxReserve', 'getAppliedTaxModel',
   'normalizeIncomeToMonthly', 'roundToolkitMoney', 'normalizeBudgetToolkitPeriod',
   'getBudgetToolkitSourceLabel',
-  'buildBudgetToolkitImport', 'getRunwayMonths'
+  'buildBudgetToolkitImport', 'clampRunway', 'getRunwayMonths',
+  'getReserveCoverageMonths', 'getSectionRows', 'getTopDriver',
+  'buildBudgetHealth', 'fmtPdfMoney', 'getPdfToneFromHealth',
+  'buildBudgetPdfInsightModel'
 ].map(extractFunction).join('\n')}
 globalThis.__budget = {
   TAX_2026, calcSelfEmploymentTax2026, calcSmartTaxReserve, getAppliedTaxModel,
   normalizeIncomeToMonthly, buildBudgetToolkitImport, getRunwayMonths,
+  getReserveCoverageMonths, buildBudgetHealth, buildBudgetPdfInsightModel,
   setTaxMode(value, pct) { taxMode = value; manualTaxPct = pct; }
 };`, context);
 const budget = context.__budget;
@@ -98,8 +104,24 @@ assert.equal(budget.getAppliedTaxModel(5000, 500, 250).mode, 'smart');
 // Positive coverage uses outflow; deficit runway uses only the monthly deficit.
 near(budget.getRunwayMonths(12000, 4000, 1000), 3, 'positive cash-flow coverage');
 near(budget.getRunwayMonths(12000, 6000, -1000), 12, 'negative cash-flow burn runway');
+near(budget.getReserveCoverageMonths(12000, 6000), 2, 'deficit expense coverage');
 assert.equal(budget.getRunwayMonths(0, 0, 0), 0);
 assert.ok(Number.isFinite(budget.getRunwayMonths(5000, 0, 0)));
+
+// Reserve health and advice stay outflow-based even when deficit runway is longer.
+const deficitHealth = budget.buildBudgetHealth(5000, 2000, 1000, 1500, 1500, 12000, 6000, -1000, { mode: 'smart' });
+near(deficitHealth.reserveMonths, 2, 'health expense coverage');
+assert.equal(deficitHealth.status, 'risk');
+const deficitAdvice = budget.buildBudgetPdfInsightModel(
+  deficitHealth, 5000, 2000, 1000, 1500, 1500, 12000, 6000, -1000, { mode: 'smart' }
+);
+assert.equal(deficitAdvice.chips[3].label, 'Reserve 2.0 mo');
+assert.equal(deficitAdvice.chips[3].cls, 'risk');
+assert.ok(deficitAdvice.tips.some(tip => tip.msg === 'Add $6,000 to reach a 3-month reserve floor.'));
+assert.equal(6000 * 3, 18000, '3-month reserve target stays outflow-based');
+
+// Positive cash flow continues to use normal expense coverage for both displays and advice.
+near(budget.getRunwayMonths(12000, 4000, 1000), budget.getReserveCoverageMonths(12000, 4000), 'positive runway parity');
 
 // Income Goal handoffs normalize annual and monthly amounts to the same monthly base.
 const annualImport = budget.buildBudgetToolkitImport({
