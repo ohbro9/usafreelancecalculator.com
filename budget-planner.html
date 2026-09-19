@@ -2479,7 +2479,7 @@
             </select>
           </div>
         </div>
-        <div class="field-helper">Used only for the smart estimate. Manual modes keep tax simple.</div>
+        <div class="field-helper">Planning estimate only. The state layer is a rough rate on net business profit. Smart mode assumes all income is self-employment income and the standard deduction; it excludes QBI, credits, itemized deductions, other income, withholding, and prior payments. Excluding QBI can make the reserve conservatively high.</div>
       </div>
       <div class="field-helper" id="taxHelper">Tax reserve stays inside planned outflow, so it does not get spent accidentally.</div>
     </div>
@@ -2979,8 +2979,8 @@ function calcSmartTaxReserve(income, overhead, operating, status, region) {
     ? 'Smart reserve • 2026 federal + SE + state layer'
     : 'Smart reserve • 2026 federal + SE';
   const helper = hasStateLayer
-    ? 'Based on 2026 federal + self-employment tax rules plus a simple state planning layer.'
-    : 'Based on 2026 federal + self-employment tax rules. State tax optional.';
+    ? 'Approximate 2026 federal + self-employment tax reserve plus a rough state layer; excludes QBI and credits.'
+    : 'Approximate 2026 federal + self-employment tax reserve; excludes QBI and credits, which can make it conservatively high.';
 
   smartTaxBreakdown = {
     annualGross,
@@ -3040,12 +3040,12 @@ function buildTaxHelperMessage(income, taxModel, viewLabel) {
   if (taxModel.mode === 'smart') {
     if (taxModel.stateIncluded) {
       return annualMode
-        ? 'Uses 2026 federal + self-employment tax rules with a simple state planning layer. Annual income is normalized to a monthly planning base.'
-        : 'Uses 2026 federal + self-employment tax rules with a simple state planning layer.';
+        ? 'Approximate 2026 federal + self-employment tax reserve with a rough state layer. Excludes QBI and credits. Annual income is normalized to a monthly planning base.'
+        : 'Approximate 2026 federal + self-employment tax reserve with a rough state layer. Excludes QBI and credits.';
     }
     return annualMode
-      ? 'Uses 2026 federal + self-employment tax rules. Annual income is normalized to a monthly planning base.'
-      : 'Uses 2026 federal + self-employment tax rules. Adjust setup if filing status or state planning changes.';
+      ? 'Approximate 2026 federal + self-employment tax reserve. Excludes QBI and credits, so it may run conservatively high. Annual income is normalized to a monthly planning base.'
+      : 'Approximate 2026 federal + self-employment tax reserve. Excludes QBI and credits, so it may run conservatively high.';
   }
   return annualMode
     ? 'Manual reserve override is active. Annual income is normalized to a monthly planning base.'
@@ -3496,7 +3496,7 @@ function buildBudgetHealth(income, needs, wants, business, taxAmt, reserve, outf
   const wantsPct = income > 0 ? (wants / income) * 100 : 0;
   const businessPct = income > 0 ? (business / income) * 100 : 0;
   const taxPctVal = income > 0 ? (taxAmt / income) * 100 : 0;
-  const reserveMonths = outflow > 0 ? reserve / outflow : 0;
+  const reserveMonths = getRunwayMonths(reserve, outflow, net);
   const netPct = income > 0 ? (net / income) * 100 : 0;
   const allZero = income === 0 && outflow === 0 && reserve === 0;
   const manualTaxWarning = taxContext ? taxContext.mode === 'manual' : true;
@@ -3811,6 +3811,14 @@ function compute() {
 function clampRunway(n) {
   if (!isFinite(n) || isNaN(n) || n < 0) return '0.0';
   return Math.min(n, 9999).toFixed(1);
+}
+
+function getRunwayMonths(reserve, outflow, net) {
+  const cash = Math.max(0, Number(reserve) || 0);
+  const monthlyOutflow = Math.max(0, Number(outflow) || 0);
+  const monthlyNet = Number(net) || 0;
+  const basis = monthlyNet < 0 ? Math.abs(monthlyNet) : monthlyOutflow;
+  return basis > 0 ? cash / basis : 0;
 }
 
 function setStatus(s) {
@@ -4176,7 +4184,7 @@ function renderBudgetToolkitFinalCard() {
     ? `${fmt(snapshot.taxAmt * mult)}/${viewMode === 'annual' ? 'yr' : 'mo'}`
     : '—';
   const runwayValue = snapshot.outflow > 0
-    ? `${clampRunway(snapshot.reserve / snapshot.outflow)} mo`
+    ? `${clampRunway(getRunwayMonths(snapshot.reserve, snapshot.outflow, snapshot.net))} mo`
     : '—';
   const importedValue = flow.amount > 0 && flow.period
     ? `${fmt(flow.amount)}/${getBudgetToolkitPeriodLabel(flow.period, true)}`
@@ -4723,7 +4731,7 @@ function buildBudgetPdfInsightModel(health, income, needs, wants, business, taxA
   const wantsPct = isFinite(wants / income) ? (wants / income) * 100 : 0;
   const businessPct = isFinite(business / income) ? (business / income) * 100 : 0;
   const taxPctVal = isFinite(taxAmt / income) ? (taxAmt / income) * 100 : 0;
-  const reserveMonths = outflow > 0 ? reserve / outflow : 0;
+  const reserveMonths = getRunwayMonths(reserve, outflow, net);
   const topNeed = getTopDriver(['needs']);
   const topWant = getTopDriver(['wants']);
   const topBusiness = getTopDriver(['overhead', 'operating']);
@@ -4771,7 +4779,7 @@ function buildBudgetPdfData() {
   const generated = new Date();
   const generatedDate = generated.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const tone = getPdfToneFromHealth(health.status);
-  const reserveMonths = outflow > 0 ? reserve / outflow : 0;
+  const reserveMonths = getRunwayMonths(reserve, outflow, net);
   const heroParts = splitPdfMoney(heroNet);
   const totalComposition = personal + business + taxAmt;
   const personalPct = totalComposition > 0 ? (personal / totalComposition) * 100 : 0;
@@ -4859,7 +4867,7 @@ function buildBudgetPdfData() {
     },
     runway: {
       value: outflow > 0 ? clampRunway(reserveMonths) : '—',
-      suffix: outflow > 0 ? 'months of expenses covered' : 'reserve runway unavailable',
+      suffix: outflow > 0 ? (net < 0 ? 'months of deficit covered' : 'months of expenses covered') : 'reserve runway unavailable',
       note: reserveMonths >= 6 ? 'Healthy reserve depth' : reserveMonths >= 3 ? 'Protect this runway' : 'Build reserve faster',
       tone: reserveMonths >= 6 ? 'good' : reserveMonths >= 3 ? 'warn' : 'risk'
     },
@@ -5206,7 +5214,7 @@ function buildBudgetPngData() {
   const viewWord = viewMode === 'annual' ? 'ANNUAL' : 'MONTHLY';
   const viewLabel = viewMode === 'annual' ? 'Annual' : 'Monthly';
   const tone = getPdfToneFromHealth(health.status);
-  const reserveMonths = outflow > 0 ? reserve / outflow : 0;
+  const reserveMonths = getRunwayMonths(reserve, outflow, net);
   const heroAmount = splitPngMoney(net * mult);
   const primaryTip = insight.tips[0]?.msg || (health.status === 'stable'
     ? 'Keep protecting reserve and reviewing your top recurring costs monthly.'
@@ -5286,7 +5294,7 @@ function buildBudgetPngData() {
       tone,
       summary: health.summary,
       runwayValue: outflow > 0 ? clampRunway(reserveMonths) : '—',
-      runwaySuffix: outflow > 0 ? 'months' : 'runway unavailable',
+      runwaySuffix: outflow > 0 ? (net < 0 ? 'months of deficit' : 'months') : 'runway unavailable',
       planningLine: primaryTip
     },
     footer: {
