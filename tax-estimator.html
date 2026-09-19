@@ -2653,9 +2653,12 @@ function getDependentTaxCredits(context) {
     context.phaseoutBase,
     context.status
   );
-  const nonrefundableCTC = Math.min(phaseout.phasedCTC, Math.max(0, context.federalBeforeCredits || 0));
-  const taxAfterCTC = Math.max(0, (context.federalBeforeCredits || 0) - nonrefundableCTC);
-  const odc = Math.min(phaseout.phasedODC, taxAfterCTC);
+  // Schedule 8812 preserves the unused child-credit amount for the refundable
+  // ACTC calculation by applying the nonrefundable ODC against tax first.
+  const taxBeforeCredits = Math.max(0, context.federalBeforeCredits || 0);
+  const odc = Math.min(phaseout.phasedODC, taxBeforeCredits);
+  const taxAfterODC = Math.max(0, taxBeforeCredits - odc);
+  const nonrefundableCTC = Math.min(phaseout.phasedCTC, taxAfterODC);
   const unusedChildCredit = Math.max(0, phaseout.phasedCTC - nonrefundableCTC);
   const actc = getACTCEstimate({
     year: context.year,
@@ -2672,7 +2675,7 @@ function getDependentTaxCredits(context) {
     unusedChildCredit,
     actcEstimate: actc.actcEstimate,
     actc,
-    federalTaxAfterCredits: Math.max(0, (context.federalBeforeCredits || 0) - nonrefundableCTC - odc) - actc.actcEstimate,
+    federalTaxAfterCredits: Math.max(0, taxBeforeCredits - nonrefundableCTC - odc),
   };
 }
 
@@ -2813,6 +2816,19 @@ function getW2PayrollTax(yourW2, spouseW2, wageBase) {
 
 function getAdditionalMedicareTax(medicareWages, selfEmploymentBase, status) {
   return Math.max(0, Math.max(0, medicareWages || 0) + Math.max(0, selfEmploymentBase || 0) - AMED_THRESHOLD[status]) * 0.009;
+}
+
+function getFederalEstimatedTaxLiability(context) {
+  // Form 1040-ES includes income tax, SE tax, Additional Medicare Tax, and
+  // NIIT, less refundable credits. Ordinary employee FICA is withholding from
+  // wages, not an estimated-tax liability.
+  return Math.max(0,
+    Math.max(0, context.federalIncomeTax || 0)
+    + Math.max(0, context.selfEmploymentTax || 0)
+    + Math.max(0, context.additionalMedicareTax || 0)
+    + Math.max(0, context.niit || 0)
+    - Math.max(0, context.refundableCredits || 0)
+  );
 }
 
 function getQBIAccuracyMode() {
@@ -4323,7 +4339,15 @@ function calculate() {
       : calcModeledStateTax(stateMeta.code, stateBaseEstimate);
 
   const personalPayrollTax = w2PayrollTax + (isSCorp ? employeePayrollTax : seTotal);
-  const totalTaxPersonal = federalTax + personalPayrollTax + stateTax + niit;
+  const taxBeforeRefundableCredits = federalTax + personalPayrollTax + stateTax + niit;
+  const totalTaxPersonal = taxBeforeRefundableCredits - actcEstimate;
+  const federalEstimatedTaxLiability = getFederalEstimatedTaxLiability({
+    federalIncomeTax: federalTax,
+    selfEmploymentTax: isSCorp ? 0 : seStandard,
+    additionalMedicareTax: amedTax,
+    niit,
+    refundableCredits: actcEstimate,
+  });
   const estimatedWithholding = parseNum('withholdingInput');
   const priorYearTotalTax = parseNum('priorYearTaxInput');
   const priorYearAGI = parseNum('priorYearAGIInput');
@@ -4331,7 +4355,7 @@ function calculate() {
   appState.priorYearTotalTax = $('priorYearTaxInput').value;
   appState.priorYearAGI = $('priorYearAGIInput').value;
   const quarterlyPlan = getQuarterlyPlan({
-    currentYearTax: totalTaxPersonal,
+    currentYearTax: federalEstimatedTaxLiability,
     withholding: estimatedWithholding,
     priorYearTotalTax,
     priorYearAGI,
@@ -4425,7 +4449,7 @@ function calculate() {
       bkSCorpDist:          isSCorp ? fmt(sCorpDistribution) : '—',
       bkQBI:                (appState.qbiOn && qbiDeduction > 0) ? '−' + fmt(qbiDeduction) : '—',
       bkCTC:                ctc > 0 ? '−' + fmt(ctc) : '—',
-      bkACTC:               actcEstimate > 0 ? fmt(actcEstimate) : '—',
+      bkACTC:               actcEstimate > 0 ? '−' + fmt(actcEstimate) : '—',
       bkDeductionUsed:      '−' + fmt(usedDeduction),
       bkRetire:             appState.retireOn ? '−' + fmt(retireContrib) : '—',
       bkHalfSE:             isSCorp ? '—' : '−' + fmt(halfSE),
@@ -4440,7 +4464,7 @@ function calculate() {
       bkSCorpDistMo:        isSCorp ? fmt(sCorpDistribution / 12) + '/mo' : '',
       bkQBIMo:              (appState.qbiOn && qbiDeduction > 0) ? '−' + fmt(qbiDeduction / 12) + '/mo' : '',
       bkCTCMo:              ctc > 0 ? '−' + fmt(ctc / 12) + '/mo' : '',
-      bkACTCMo:             actcEstimate > 0 ? fmt(actcEstimate / 12) + '/mo' : '',
+      bkACTCMo:             actcEstimate > 0 ? '−' + fmt(actcEstimate / 12) + '/mo' : '',
       bkRetireMo:           appState.retireOn ? '−' + fmt(retireContrib / 12) + '/mo' : '',
       bkHalfSEMo:           isSCorp ? '' : '−' + fmt(halfSE / 12) + '/mo',
       saWeekly:             fmt(weekly),
@@ -4619,10 +4643,10 @@ function calculate() {
     }
   }
 
-  if (totalTaxPersonal > 0) {
-    $('barFederal').style.width = ((federalTax + niit) / totalTaxPersonal * 100).toFixed(1) + '%';
-    $('barSE').style.width      = (personalPayrollTax / totalTaxPersonal * 100).toFixed(1) + '%';
-    $('barState').style.width   = (stateTax / totalTaxPersonal * 100).toFixed(1) + '%';
+  if (taxBeforeRefundableCredits > 0) {
+    $('barFederal').style.width = ((federalTax + niit) / taxBeforeRefundableCredits * 100).toFixed(1) + '%';
+    $('barSE').style.width      = (personalPayrollTax / taxBeforeRefundableCredits * 100).toFixed(1) + '%';
+    $('barState').style.width   = (stateTax / taxBeforeRefundableCredits * 100).toFixed(1) + '%';
   } else {
     ['barFederal','barSE','barState'].forEach(id => $(id).style.width = '0%');
   }
@@ -4655,7 +4679,8 @@ function calculate() {
     w2PayrollTax,
     seStandard, amedTax, halfSE, grossIncome,
     federalBeforeCTC, federalTax,
-    stateTax, totalTax: totalTaxDisplay, takeHome,
+    stateTax, totalTax: totalTaxDisplay, taxBeforeRefundableCredits,
+    refundableCredits: actcEstimate, federalEstimatedTaxLiability, takeHome,
     effectiveRate, quarterly, monthly, weekly,
     itemizedOn: appState.itemizedOn,
     standardDeduction,
@@ -4956,7 +4981,7 @@ async function downloadImage() {
     { label: 'S-Corp distribution', val: fmt(r.sCorpDistribution||0), color: C.blue, show: !!r.sCorpOn && (r.sCorpDistribution||0) > 0 },
     { label: 'QBI Deduction (est.)', val: '−' + fmt(r.qbiDeduction), color: C.green, show: r.qbiOn && r.qbiDeduction > 0 },
     { label: 'Child Tax Credit (est.)', val: '−' + fmt(r.ctc), color: C.orange, show: r.ctc > 0 },
-    { label: 'Addl. Child Tax Credit', val: fmt(r.actcEstimate), color: C.orange, show: (r.actcEstimate||0) > 0 },
+    { label: 'Refundable Child Tax Credit', val: '−' + fmt(r.actcEstimate), color: C.orange, show: (r.actcEstimate||0) > 0 },
     { label: r.usedDeductionMode === 'itemized' ? 'Itemized Deduction (est.)' : 'Standard Deduction', val: '−' + fmt(r.usedDeduction), color: C.purple, show: (r.usedDeduction||0) > 0 },
     { label: 'Retirement Contrib.', val: '−' + fmt(r.retireContrib), color: C.purple, show: r.retireOn && r.retireContrib > 0 },
     { label: '1/2 SE Deduction', val: '−' + fmt(r.halfSE), color: C.muted, show: !r.sCorpOn, sub: true },
@@ -5376,11 +5401,11 @@ function downloadPDF() {
   if (ctc > 0 && federalBefore > 0) {
     taxRows.push(['Federal tax before credit', fd(federalBefore), 'normal']);
     taxRows.push(['Child tax credit', signed(-ctc), 'negative']);
-    if (num(r.actcEstimate) > 0) taxRows.push(['Additional child tax credit (est.)', fd(r.actcEstimate), 'normal']);
+    if (num(r.actcEstimate) > 0) taxRows.push(['Refundable child tax credit (est.)', '−' + fd(r.actcEstimate), 'negative']);
     taxRows.push(['Federal tax after credit', fd(r.federalTax), 'normal']);
   } else {
     taxRows.push(['Federal tax', fd(r.federalTax), 'normal']);
-    if (num(r.actcEstimate) > 0) taxRows.push(['Additional child tax credit (est.)', fd(r.actcEstimate), 'normal']);
+    if (num(r.actcEstimate) > 0) taxRows.push(['Refundable child tax credit (est.)', '−' + fd(r.actcEstimate), 'negative']);
   }
   if (num(r.usedDeduction) > 0) taxRows.push([r.usedDeductionMode === 'itemized' ? 'Itemized deduction (est.)' : 'Standard deduction', signed(-r.usedDeduction), 'negative']);
   if (num(r.niit) > 0) taxRows.push(['NIIT (3.8% estimate)', fd(r.niit), 'normal']);
