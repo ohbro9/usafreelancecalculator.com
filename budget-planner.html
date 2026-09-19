@@ -3456,7 +3456,7 @@ function renderPhaseOneHelpers(income, reserve, taxModel, outflow) {
 
   if (reserveHelper) {
     if (outflow > 0) {
-      const coverage = reserve / outflow;
+      const coverage = getReserveCoverageMonths(reserve, outflow);
       reserveHelper.innerHTML = `Reserve targets: 1 mo ${fmt(outflow)}, 3 mo ${fmt(outflow * 3)}, 6 mo ${fmt(outflow * 6)}. Current cover: <strong>${clampRunway(coverage)}</strong> months.`;
     } else {
       reserveHelper.textContent = 'Reserve month chips use planned outflow to build a faster savings target.';
@@ -3496,7 +3496,7 @@ function buildBudgetHealth(income, needs, wants, business, taxAmt, reserve, outf
   const wantsPct = income > 0 ? (wants / income) * 100 : 0;
   const businessPct = income > 0 ? (business / income) * 100 : 0;
   const taxPctVal = income > 0 ? (taxAmt / income) * 100 : 0;
-  const reserveMonths = getRunwayMonths(reserve, outflow, net);
+  const reserveMonths = getReserveCoverageMonths(reserve, outflow);
   const netPct = income > 0 ? (net / income) * 100 : 0;
   const allZero = income === 0 && outflow === 0 && reserve === 0;
   const manualTaxWarning = taxContext ? taxContext.mode === 'manual' : true;
@@ -3764,7 +3764,7 @@ function compute() {
     if (statusNoteEl) statusNoteEl.textContent = '';
     setStatus('none');
   } else {
-    const coverage = reserve / outflow;
+    const coverage = getReserveCoverageMonths(reserve, outflow);
     if (!isFinite(coverage) || coverage > 999) {
       runwayEl.textContent = '∞';
       if (runwayNoteEl) runwayNoteEl.textContent = 'Reserve covers all expenses';
@@ -3819,6 +3819,12 @@ function getRunwayMonths(reserve, outflow, net) {
   const monthlyNet = Number(net) || 0;
   const basis = monthlyNet < 0 ? Math.abs(monthlyNet) : monthlyOutflow;
   return basis > 0 ? cash / basis : 0;
+}
+
+function getReserveCoverageMonths(reserve, outflow) {
+  const cash = Math.max(0, Number(reserve) || 0);
+  const monthlyOutflow = Math.max(0, Number(outflow) || 0);
+  return monthlyOutflow > 0 ? cash / monthlyOutflow : 0;
 }
 
 function setStatus(s) {
@@ -4654,7 +4660,7 @@ function copySummary() {
   } else if (outflow === 0) {
     runwayStr = '—'; statusStr = 'NO DATA';
   } else {
-    const cov = reserve / outflow;
+    const cov = getReserveCoverageMonths(reserve, outflow);
     runwayStr = isFinite(cov) ? `${Math.min(cov, 9999).toFixed(1)} months coverage` : '∞';
     statusStr = health.status === 'stable' ? '✦ STABLE' : health.status === 'tight' ? '⚠ TIGHT' : '✕ RISK';
   }
@@ -4731,7 +4737,7 @@ function buildBudgetPdfInsightModel(health, income, needs, wants, business, taxA
   const wantsPct = isFinite(wants / income) ? (wants / income) * 100 : 0;
   const businessPct = isFinite(business / income) ? (business / income) * 100 : 0;
   const taxPctVal = isFinite(taxAmt / income) ? (taxAmt / income) * 100 : 0;
-  const reserveMonths = getRunwayMonths(reserve, outflow, net);
+  const reserveMonths = getReserveCoverageMonths(reserve, outflow);
   const topNeed = getTopDriver(['needs']);
   const topWant = getTopDriver(['wants']);
   const topBusiness = getTopDriver(['overhead', 'operating']);
@@ -4779,7 +4785,8 @@ function buildBudgetPdfData() {
   const generated = new Date();
   const generatedDate = generated.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const tone = getPdfToneFromHealth(health.status);
-  const reserveMonths = getRunwayMonths(reserve, outflow, net);
+  const runwayMonths = getRunwayMonths(reserve, outflow, net);
+  const reserveMonths = getReserveCoverageMonths(reserve, outflow);
   const heroParts = splitPdfMoney(heroNet);
   const totalComposition = personal + business + taxAmt;
   const personalPct = totalComposition > 0 ? (personal / totalComposition) * 100 : 0;
@@ -4859,14 +4866,14 @@ function buildBudgetPdfData() {
       label: health.status === 'stable' ? 'Stable' : health.status === 'tight' ? 'Tight' : health.status === 'risk' ? 'Risk' : 'No Data',
       summary: health.summary,
       metrics: [
-        { label: 'Runway', value: outflow > 0 ? `${clampRunway(reserveMonths)} mo` : '—' },
+        { label: 'Runway', value: outflow > 0 ? `${clampRunway(runwayMonths)} mo` : '—' },
         { label: 'Needs Share', value: income > 0 ? `${Math.round(insight.needsPct)}%` : '—' },
         { label: 'Business Share', value: income > 0 ? `${Math.round(insight.businessPct)}%` : '—' },
         { label: 'Tax Reserve', value: income > 0 ? `${Math.round(insight.taxPctVal)}%` : '—' }
       ]
     },
     runway: {
-      value: outflow > 0 ? clampRunway(reserveMonths) : '—',
+      value: outflow > 0 ? clampRunway(runwayMonths) : '—',
       suffix: outflow > 0 ? (net < 0 ? 'months of deficit covered' : 'months of expenses covered') : 'reserve runway unavailable',
       note: reserveMonths >= 6 ? 'Healthy reserve depth' : reserveMonths >= 3 ? 'Protect this runway' : 'Build reserve faster',
       tone: reserveMonths >= 6 ? 'good' : reserveMonths >= 3 ? 'warn' : 'risk'
@@ -5214,7 +5221,8 @@ function buildBudgetPngData() {
   const viewWord = viewMode === 'annual' ? 'ANNUAL' : 'MONTHLY';
   const viewLabel = viewMode === 'annual' ? 'Annual' : 'Monthly';
   const tone = getPdfToneFromHealth(health.status);
-  const reserveMonths = getRunwayMonths(reserve, outflow, net);
+  const runwayMonths = getRunwayMonths(reserve, outflow, net);
+  const reserveMonths = getReserveCoverageMonths(reserve, outflow);
   const heroAmount = splitPngMoney(net * mult);
   const primaryTip = insight.tips[0]?.msg || (health.status === 'stable'
     ? 'Keep protecting reserve and reviewing your top recurring costs monthly.'
@@ -5293,7 +5301,7 @@ function buildBudgetPngData() {
       label: healthLabel,
       tone,
       summary: health.summary,
-      runwayValue: outflow > 0 ? clampRunway(reserveMonths) : '—',
+      runwayValue: outflow > 0 ? clampRunway(runwayMonths) : '—',
       runwaySuffix: outflow > 0 ? (net < 0 ? 'months of deficit' : 'months') : 'runway unavailable',
       planningLine: primaryTip
     },
@@ -5904,7 +5912,7 @@ function downloadPrintLegacy() {
     statusStr = 'RISK';
   } else if (outflow === 0) { runwayStr = '--'; statusStr = 'No Data'; }
   else {
-    const cov = reserve / outflow;
+    const cov = getReserveCoverageMonths(reserve, outflow);
     runwayStr = !isFinite(cov) ? 'inf' : clampRunway(cov) + ' mo coverage';
     statusStr = health.status === 'stable' ? 'STABLE' : health.status === 'tight' ? 'TIGHT' : 'RISK';
   }
@@ -6244,7 +6252,7 @@ function updateInsights(health, income, personal, business, taxAmt, needs, wants
   const wantsPct = isFinite(wants/income)   ? (wants/income)*100   : 0;
   const bizPct   = isFinite(business/income)? (business/income)*100: 0;
   const taxPctVal= isFinite(taxAmt/income)  ? (taxAmt/income)*100  : 0;
-  const reserveMonths = outflow > 0 ? reserve / outflow : 0;
+  const reserveMonths = getReserveCoverageMonths(reserve, outflow);
   const topNeed = getTopDriver(['needs']);
   const topWant = getTopDriver(['wants']);
   const topBusiness = getTopDriver(['overhead', 'operating']);
