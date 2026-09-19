@@ -51,6 +51,14 @@ async function forceSelection(page, id, position) {
   }, { inputId: id, requested: position });
 }
 
+async function tapWithoutMoving(input) {
+  await input.dispatchEvent('pointerdown', { pointerType: 'touch', isPrimary: true });
+  await input.dispatchEvent('touchstart');
+  await input.dispatchEvent('pointerup', { pointerType: 'touch', isPrimary: true });
+  await input.dispatchEvent('touchend');
+  await input.dispatchEvent('click');
+}
+
 async function runProfile(browser, name, options) {
   const context = await browser.newContext(options);
   const page = await context.newPage();
@@ -78,6 +86,34 @@ async function runProfile(browser, name, options) {
       assert.equal((await inputState(page, id)).value, expectedDisplay, `${name}/${id}: no jump`);
     }
 
+    let input = await deleteDecimal(page, id, '1,234.56');
+    const expectedCaret = (await inputState(page, id)).pending.expectedSelectionStart;
+    await tapWithoutMoving(input);
+    let state = await inputState(page, id);
+    assert.equal(state.selectionStart, expectedCaret, `${name}/${id}: stationary tap keeps caret`);
+    assert.ok(state.pending, `${name}/${id}: stationary tap keeps pending intent`);
+    await input.press('9');
+    state = await inputState(page, id);
+    assert.equal(state.value, '12,349.56', `${name}/${id}: stationary tap resolves logical intent`);
+    assert.equal(state.calculated, 12349.56, `${name}/${id}: stationary tap exact value`);
+    assert.equal(state.pending, null, `${name}/${id}: stationary tap edit clears pending`);
+
+    for (const key of ['ArrowLeft', 'ArrowRight']) {
+      input = await deleteDecimal(page, id, '1,234.56');
+      const before = await inputState(page, id);
+      await input.press(key);
+      state = await inputState(page, id);
+      assert.notEqual(state.selectionStart, before.selectionStart, `${name}/${id}: ${key} actually moves caret`);
+      assert.equal(state.pending.intentionalSelection, true, `${name}/${id}: ${key} records genuine movement`);
+      await input.press('9');
+      state = await inputState(page, id);
+      assert.equal(state.pending, null, `${name}/${id}: ${key} edit clears pending`);
+      assert.ok(!['1.23', '5.60', '67.21', '1,234,569'].includes(state.value),
+        `${name}/${id}: ${key} must not collapse or append incorrectly`);
+      assert.equal(state.value, key === 'ArrowLeft' ? '12,394.56' : '1,234.59',
+        `${name}/${id}: ${key} respects the moved caret`);
+    }
+
     for (const separator of ['.', ',']) {
       const input = await deleteDecimal(page, id, '1,234.56');
       await forceSelection(page, id, 'end');
@@ -96,14 +132,16 @@ async function runProfile(browser, name, options) {
     }
 
     const deliberate = await deleteDecimal(page, id, '1,234.56');
-    await deliberate.dispatchEvent('pointerdown', { pointerType: 'touch', isPrimary: true });
     await forceSelection(page, id, 0);
+    await deliberate.dispatchEvent('pointerup', { pointerType: 'touch', isPrimary: true });
+    await deliberate.dispatchEvent('click');
     await deliberate.press('9');
     const deliberateState = await inputState(page, id);
     assert.equal(deliberateState.pending, null, `${name}/${id}: deliberate movement clears pending`);
-    assert.notEqual(deliberateState.value, '12,349.56', `${name}/${id}: deliberate movement is respected`);
+    assert.equal(deliberateState.value, '91,234.56', `${name}/${id}: deliberate movement is respected`);
+    assert.equal(deliberateState.calculated, 91234.56, `${name}/${id}: deliberate movement exact value`);
 
-    let input = await typeFresh(page, id, '1234.56');
+    input = await typeFresh(page, id, '1234.56');
     await page.evaluate((inputId) => document.getElementById(inputId).setSelectionRange(2, 2), id);
     await input.press('Backspace');
     assert.equal((await inputState(page, id)).calculated, 1234.56, `${name}/${id}: grouping comma deletion`);

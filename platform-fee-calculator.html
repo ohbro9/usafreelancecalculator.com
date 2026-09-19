@@ -3095,10 +3095,21 @@ function resolvePlatformPendingDecimalInsert(input,event,pendingDecimal){
   if(!/^\d+$/.test(inserted)&&inserted!=='.'&&inserted!==',')return false;
   const config=getPlatformIntegerInputConfig(input);
   const digits=String(input.value||'').replace(/\D/g,'');
-  const boundary=Math.max(0,Math.min(digits.length,pendingDecimal.wholeDigitCount));
+  const savedBoundary=Math.max(0,Math.min(digits.length,pendingDecimal.wholeDigitCount));
   const insertedDigits=inserted.replace(/\D/g,'');
-  const resolvedDigits=digits.slice(0,boundary)+insertedDigits+digits.slice(boundary);
-  const resolvedBoundary=boundary+insertedDigits.length;
+  const useCurrentSelection=!!pendingDecimal.intentionalSelection;
+  const selectionStart=useCurrentSelection&&typeof input.selectionStart==='number'
+    ?input.selectionStart:pendingDecimal.expectedSelectionStart;
+  const selectionEnd=useCurrentSelection&&typeof input.selectionEnd==='number'
+    ?input.selectionEnd:selectionStart;
+  const digitStart=useCurrentSelection
+    ?String(input.value||'').slice(0,selectionStart).replace(/\D/g,'').length:savedBoundary;
+  const digitEnd=useCurrentSelection
+    ?String(input.value||'').slice(0,selectionEnd).replace(/\D/g,'').length:digitStart;
+  const resolvedDigits=digits.slice(0,digitStart)+insertedDigits+digits.slice(digitEnd);
+  const removedBeforeBoundary=Math.max(0,Math.min(digitEnd,savedBoundary)-Math.min(digitStart,savedBoundary));
+  const resolvedBoundary=Math.max(0,savedBoundary-removedBeforeBoundary
+    +(digitStart<=savedBoundary?insertedDigits.length:0));
   const normalized=normalizePlatformTransactionInput(
     resolvedDigits.slice(0,resolvedBoundary)+'.'+resolvedDigits.slice(resolvedBoundary),
     config.allowEmpty
@@ -3109,10 +3120,14 @@ function resolvePlatformPendingDecimalInsert(input,event,pendingDecimal){
   input._platformTransactionPendingDecimal=null;
   input._platformTransactionEditContext=null;
   if(typeof input.setSelectionRange==='function'){
-    let caret=input.value.indexOf('.');
-    if(insertedDigits)caret=caret<0?input.value.length:caret;
-    else caret=caret<0?input.value.length:caret+1;
-    input.setSelectionRange(caret,caret);
+    if(useCurrentSelection&&insertedDigits){
+      syncPlatformIntegerInputCaret(input,digitStart+insertedDigits.length);
+    }else{
+      let caret=input.value.indexOf('.');
+      if(insertedDigits)caret=caret<0?input.value.length:caret;
+      else caret=caret<0?input.value.length:caret+1;
+      input.setSelectionRange(caret,caret);
+    }
   }
   input.dispatchEvent(new InputEvent('input',{
     bubbles:true,
@@ -3253,23 +3268,31 @@ function bindPlatformTransactionMoneyInputs(){
   PFC_TRANSACTION_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
-    const markIntentionalSelection=function(){
-      if(input._platformTransactionPendingDecimal){
-        input._platformTransactionPendingDecimal.intentionalSelection=true;
-      }
+    const markIntentionalSelectionIfMoved=function(){
+      const pendingDecimal=input._platformTransactionPendingDecimal;
+      if(!pendingDecimal)return;
+      const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:null;
+      const selectionEnd=typeof input.selectionEnd==='number'?input.selectionEnd:null;
+      pendingDecimal.intentionalSelection=selectionStart!==pendingDecimal.expectedSelectionStart
+        ||selectionEnd!==pendingDecimal.expectedSelectionStart;
     };
-    input.addEventListener('pointerdown',markIntentionalSelection);
-    input.addEventListener('touchstart',markIntentionalSelection,{passive:true});
+    input.addEventListener('pointerup',markIntentionalSelectionIfMoved);
+    input.addEventListener('touchend',markIntentionalSelectionIfMoved,{passive:true});
+    input.addEventListener('click',markIntentionalSelectionIfMoved);
     input.addEventListener('keydown',function(event){
       if(/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(event.key)){
-        markIntentionalSelection();
+        input._platformTransactionSelectionKey=true;
+      }
+    });
+    input.addEventListener('keyup',function(event){
+      if(input._platformTransactionSelectionKey
+        &&/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(event.key)){
+        input._platformTransactionSelectionKey=false;
+        markIntentionalSelectionIfMoved();
       }
     });
     input.addEventListener('beforeinput',function(event){
       const pendingDecimal=this._platformTransactionPendingDecimal||null;
-      if(pendingDecimal&&pendingDecimal.intentionalSelection){
-        this._platformTransactionPendingDecimal=null;
-      }
       this._platformTransactionEditContext={
         value:this.value||'',
         selectionStart:typeof this.selectionStart==='number'?this.selectionStart:(this.value||'').length,
@@ -3278,7 +3301,7 @@ function bindPlatformTransactionMoneyInputs(){
         data:event.data,
         pendingDecimal:this._platformTransactionPendingDecimal||null
       };
-      if(pendingDecimal&&!pendingDecimal.intentionalSelection&&/^insert/.test(event.inputType||'')){
+      if(pendingDecimal&&/^insert/.test(event.inputType||'')){
         resolvePlatformPendingDecimalInsert(this,event,pendingDecimal);
       }
     });
