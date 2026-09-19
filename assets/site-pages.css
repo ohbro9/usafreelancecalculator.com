@@ -521,6 +521,7 @@
 }
 
 .legal-meta__item{
+  min-width:0;
   border:1px solid rgba(255,255,255,.10);
   border-radius:20px;
   padding:14px 16px;
@@ -590,6 +591,7 @@
 
 .legal-email-link--split span{
   display:inline-block;
+  max-width:100%;
   white-space:nowrap;
 }
 
