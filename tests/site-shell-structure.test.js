@@ -16,6 +16,13 @@ const rootPages = [
 ];
 const pages = [...rootPages, 'app/index.html'];
 
+const icon = fs.readFileSync(path.join(root, 'assets/icon.svg'), 'utf8');
+assert.match(icon, /#0A1728/i, 'brand icon contains deep navy');
+assert.match(icon, /#FF7A00/i, 'brand icon contains focal orange');
+assert.match(icon, /#F8FBFF/i, 'brand icon contains near-white');
+assert.doesNotMatch(icon, /linearGradient/i, 'brand icon has no linear gradients');
+assert.doesNotMatch(icon, /radialGradient/i, 'brand icon has no radial gradients');
+
 for (const file of pages) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.match(html, /rel=["']canonical["']/i, `${file}: canonical preserved`);
