@@ -33,6 +33,6 @@ for (const file of pages) {
 }
 
 const updateConfig = fs.readFileSync(path.join(root, 'app/update-config.json'), 'utf8');
-assert.match(updateConfig, /"versionCode"\s*:\s*2/, 'release versionCode remains 2');
-assert.match(updateConfig, /"versionName"\s*:\s*"1\.0\.1"/, 'release versionName remains 1.0.1');
+assert.match(updateConfig, /"latestVersionCode"\s*:\s*2/, 'release latestVersionCode remains 2');
+assert.match(updateConfig, /"latestVersionName"\s*:\s*"1\.0\.1"/, 'release latestVersionName remains 1.0.1');
 console.log('site-shell structural tests: PASS');
