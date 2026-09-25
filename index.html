@@ -1512,22 +1512,45 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <link rel="stylesheet" href="assets/site-shell.css">
+  <script defer src="assets/js/site-shell.js"></script>
 </head>
 <body>
-
-<div class="toolkit-nav">
-    <div class="toolkit-nav-inner">
-        <div class="toolkit-label2">🧰 Connected Toolkit</div>
-        <div class="toolkit-pills">
-            <a class="toolkit-pill active" href="index.html" aria-current="page"><span class="pill-icon">⏱</span> Hourly Rate</a>
-            <a class="toolkit-pill" href="platform-fee-calculator.html"><span class="pill-icon">💸</span> Platform Fees</a>
-            <a class="toolkit-pill" href="tax-estimator.html"><span class="pill-icon">🏛️</span> Tax Estimator</a>
-            <a class="toolkit-pill" href="income-goal-planner.html"><span class="pill-icon">🎯</span> Goal Planner</a>
-            <a class="toolkit-pill" href="budget-planner.html"><span class="pill-icon">📊</span> Budget Planner</a>
-            <a class="toolkit-pill app-pill" href="app/"><span class="pill-icon">📱</span> Android App</a>
-        </div>
+<header class="ufc-shell-header" data-site-shell>
+  <div class="ufc-shell-inner">
+    <a class="ufc-shell-brand" href="index.html" data-shell-page="/">
+      <img class="ufc-shell-brand-mark" src="assets/icon.svg" alt="" width="38" height="38">
+      <span>USA Freelance Calculator</span>
+    </a>
+    <nav class="ufc-shell-primary-nav" aria-label="Freelance calculator tools">
+      <a class="ufc-shell-tool-link" href="hourly-rate-calculator.html" data-shell-page="/hourly-rate-calculator.html">Hourly Rate</a>
+      <a class="ufc-shell-tool-link" href="platform-fee-calculator.html" data-shell-page="/platform-fee-calculator.html">Platform Fees</a>
+      <a class="ufc-shell-tool-link" href="tax-estimator.html" data-shell-page="/tax-estimator.html">Tax Estimator</a>
+      <a class="ufc-shell-tool-link" href="income-goal-planner.html" data-shell-page="/income-goal-planner.html">Goal Planner</a>
+      <a class="ufc-shell-tool-link" href="budget-planner.html" data-shell-page="/budget-planner.html">Budget Planner</a>
+    </nav>
+    <div class="ufc-shell-actions">
+      <button type="button" class="ufc-shell-menu-trigger" data-shell-menu-trigger aria-label="Open site menu" aria-controls="ufc-shell-menu" aria-expanded="false">⋮</button>
     </div>
-</div>
+  </div>
+</header>
+<div class="ufc-shell-backdrop" data-shell-backdrop data-shell-open="false" aria-hidden="true"></div>
+<aside id="ufc-shell-menu" class="ufc-shell-menu" data-shell-menu data-shell-open="false" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site navigation">
+  <button type="button" class="ufc-shell-menu-close" data-shell-menu-close aria-label="Close site menu">×</button>
+    <a class="ufc-shell-menu-link" href="index.html" data-shell-page="/">All Tools / Home</a>
+    <a class="ufc-shell-menu-link" href="hourly-rate-calculator.html" data-shell-page="/hourly-rate-calculator.html">Hourly Rate</a>
+    <a class="ufc-shell-menu-link" href="platform-fee-calculator.html" data-shell-page="/platform-fee-calculator.html">Platform Fees</a>
+    <a class="ufc-shell-menu-link" href="tax-estimator.html" data-shell-page="/tax-estimator.html">Tax Estimator</a>
+    <a class="ufc-shell-menu-link" href="income-goal-planner.html" data-shell-page="/income-goal-planner.html">Goal Planner</a>
+    <a class="ufc-shell-menu-link" href="budget-planner.html" data-shell-page="/budget-planner.html">Budget Planner</a>
+    <a class="ufc-shell-menu-link" href="app/" data-shell-page="/app/">Android App</a>
+    <button type="button" class="ufc-shell-menu-link" data-shell-share>Share this page</button>
+    <a class="ufc-shell-menu-link" href="about.html" data-shell-page="/about.html">About</a>
+    <a class="ufc-shell-menu-link" href="contact.html" data-shell-page="/contact.html">Contact</a>
+    <a class="ufc-shell-menu-link" href="privacy.html" data-shell-page="/privacy.html">Privacy</a>
+    <a class="ufc-shell-menu-link" href="terms.html" data-shell-page="/terms.html">Terms</a>
+</aside>
+
 
 <div id="app">
     <button type="button" class="dm-btn" id="dmBtn"><span id="dmIcon">☀️</span><span id="dmLbl">Light</span></button>
@@ -2211,29 +2234,8 @@ You can set goals per year, month, or week.">What's this?</button>
         </div>
         <div class="site-footer-actions">
             <div class="site-footer-group">
-                <div class="site-footer-group-label">Primary Tools</div>
-                <div class="site-footer-tools" aria-label="Primary tool links">
-                    <a href="hourly-rate-calculator.html">Hourly Rate</a>
-                    <a href="platform-fee-calculator.html">Platform Fees</a>
-                    <a href="tax-estimator.html">Tax Estimator</a>
-                    <a href="income-goal-planner.html">Goal Planner</a>
-                    <a href="budget-planner.html">Budget Planner</a>
-                    <a href="#homeTools">All Tools</a>
-                </div>
-            </div>
-            <div class="site-footer-group">
                 <div class="site-footer-group-label">Start Here</div>
                 <a class="site-footer-start" href="#mainCard">Start with Hourly</a>
-            </div>
-            <div class="site-footer-group">
-                <div class="site-footer-group-label">Info</div>
-                <div class="site-footer-legal-links" aria-label="Legal and info links">
-                    <a href="app/">Android App</a>
-                    <a href="about.html">About</a>
-                    <a href="privacy.html">Privacy</a>
-                    <a href="terms.html">Terms</a>
-                    <a href="contact.html">Contact</a>
-                </div>
             </div>
         </div>
     </div>
@@ -4976,5 +4978,32 @@ else calc();
 persistScheduleData();__isInit=false;
 })();
 </script>
+
+<footer class="ufc-shell-footer">
+  <div class="ufc-shell-footer-grid">
+    <div>
+      <strong>USA Freelance Calculator</strong>
+      <p>Five connected planning tools for US freelancers, available individually or as one workflow.</p>
+    </div>
+    <div>
+      <strong>Tools</strong>
+      <div class="ufc-shell-footer-links" aria-label="Calculator tools">
+        <a href="hourly-rate-calculator.html">Hourly Rate</a>
+        <a href="platform-fee-calculator.html">Platform Fees</a>
+        <a href="tax-estimator.html">Tax Estimator</a>
+        <a href="income-goal-planner.html">Goal Planner</a>
+        <a href="budget-planner.html">Budget Planner</a>
+      </div>
+      <strong>Product / Info</strong>
+      <div class="ufc-shell-footer-links" aria-label="Product and information">
+        <a href="app/">Android App</a>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
