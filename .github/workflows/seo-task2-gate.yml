@@ -14,5 +14,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Inspect public-copy contexts
+        shell: bash
+        run: |
+          set +e
+          for spec in \
+            'budget-planner.html|without adding a messy social strip' \
+            'hourly-rate-calculator.html|homepage now stays tighter' \
+            'platform-fee-calculator.html|Keep the end-of-page UI premium and compact' \
+            'tax-estimator.html|without turning the page into a cluttered social block' \
+            'income-goal-planner.html|so the main tool keeps its premium flow'; do
+            file="${spec%%|*}"
+            phrase="${spec#*|}"
+            echo "===== $file :: $phrase ====="
+            grep -n -C 3 -F "$phrase" "$file" || true
+          done
       - name: Run SEO structure regression
         run: node tests/seo-structure-regression.test.js
