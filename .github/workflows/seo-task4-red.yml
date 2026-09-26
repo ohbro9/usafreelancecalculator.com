@@ -1,0 +1,65 @@
+name: SEO Task 4 RED Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  task4-red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply Task 4 structural tests
+        run: python3 .github/tmp/seo-task4-test-patch.py
+
+      - name: Verify expected RED and protected baselines
+        shell: bash
+        run: |
+          set +e
+          node tests/seo-structure-regression.test.js 2>&1 | tee /tmp/seo-task4-red.log
+          seo_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$seo_status" -eq 0 ]; then
+            echo "Expected Task 4 SEO assertions to fail before implementation."
+            exit 1
+          fi
+          for label in \
+            "home title" \
+            "home h1" \
+            "hourly title" \
+            "hourly h1" \
+            "home supporting heading: choose calculator" \
+            "home supporting heading: connected workflow" \
+            "home supporting heading: goal entry points" \
+            "hourly supporting heading: how to calculate" \
+            "hourly supporting heading: billable hours" \
+            "hourly supporting heading: worked example" \
+            "hourly supporting heading: FAQ"; do
+              grep -Fqi "$label" /tmp/seo-task4-red.log || { echo "Missing expected RED: $label"; exit 1; }
+          done
+          node tests/budget-planner-regression.test.js
+          node tests/tax-estimator-regression.test.js
+          node tests/android-download-page-release.test.js
+          echo "Task 4 RED gate: expected SEO failures confirmed; protected baselines PASS"
+
+      - name: Commit Task 4 failing tests
+        shell: bash
+        run: |
+          if git diff --quiet -- tests/seo-structure-regression.test.js; then
+            echo "Task 4 tests already committed; verification only."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/seo-structure-regression.test.js
+          git commit -m "test: pin home and hourly SEO separation"
+          git push origin HEAD:feat/seo-growth-v1
