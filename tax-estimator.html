@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>USA Freelance Tax Estimator | Free Freelancer Tax Calculator</title>
-<meta name="description" content="Free USA freelance tax estimator. Calculate self-employment tax, federal tax, quarterly estimates, and real take-home pay."/>
+<title>Freelance Tax Calculator 2026 | Estimate Taxes &amp; Take-Home</title>
+<meta name="description" content="Estimate 2026 freelance taxes including self-employment tax, federal tax, quarterly payments, and take-home pay for US freelancers."/>
 <meta name="keywords" content="freelancer tax calculator, self employment tax, 1099 tax estimator, quarterly estimated tax, freelance income tax 2025 2026"/>
 <meta name="robots" content="index, follow"/>
 <meta name="author" content="USAFreelanceCalculator.com"/>
@@ -15,19 +15,19 @@
 <link rel="canonical" href="https://usafreelancecalculator.com/tax-estimator.html" />
 <meta property="og:type"        content="website"/>
 <meta property="og:site_name"   content="USA Freelance Calculator"/>
-<meta property="og:title"       content="USA Freelance Tax Estimator"/>
-<meta property="og:description" content="Know exactly what you keep. Free live tax estimate for US freelancers — SE tax, federal, state, quarterly payments. No sign-up."/>
+<meta property="og:title"       content="Freelance Tax Calculator 2026 | Estimate Taxes &amp; Take-Home"/>
+<meta property="og:description" content="Estimate 2026 self-employment tax, federal tax, quarterly payments, optional state tax, and take-home for US freelancers."/>
 <meta property="og:url"         content="https://usafreelancecalculator.com/tax-estimator.html" />
 <meta name="twitter:card"        content="summary"/>
-<meta name="twitter:title"       content="USA Freelance Tax Estimator"/>
-<meta name="twitter:description" content="Know exactly what you keep. Free live tax estimate — no sign-up needed."/>
+<meta name="twitter:title"       content="Freelance Tax Calculator 2026 | Estimate Taxes &amp; Take-Home"/>
+<meta name="twitter:description" content="Estimate 2026 freelancer self-employment tax, quarterly payments, and take-home with editable assumptions."/>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "USA Freelance Tax Estimator",
+  "name": "Freelance Tax Calculator for US Freelancers",
   "url": "https://usafreelancecalculator.com/tax-estimator.html",
-  "description": "Free freelancer tax estimator for US self-employed income, self-employment tax, and take-home planning.",
+  "description": "2026 freelance tax calculator for US self-employed income, self-employment tax, quarterly estimates, and take-home planning.",
   "applicationCategory": "FinanceApplication",
   "operatingSystem": "Any"
 }
@@ -1253,6 +1253,21 @@
     .snt-flow-actions { grid-template-columns: 1fr; }
   }
   .snt-hint b { color: var(--gold); font-weight: 700; }
+
+  /* TASK 5 — supporting SEO/trust content below the calculator */
+  .tax-seo-guide{position:relative;z-index:1;max-width:920px;margin:0 auto 18px;padding:0 14px;}
+  .tax-seo-guide-inner{display:grid;gap:13px;}
+  .tax-seo-card{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012)),var(--card);border:1px solid var(--border);border-radius:22px;padding:18px;box-shadow:0 14px 34px rgba(0,0,0,.20);}
+  .tax-seo-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .tax-seo-card h2{margin:0 0 9px;font-size:clamp(19px,2.7vw,25px);line-height:1.16;letter-spacing:-.03em;color:var(--text);}
+  .tax-seo-card h3{margin:14px 0 5px;font-size:15px;line-height:1.3;color:var(--text);}
+  .tax-seo-card p,.tax-seo-card li{color:var(--muted);font-size:13px;line-height:1.65;}
+  .tax-seo-card ul,.tax-seo-card ol{margin:9px 0 0 20px;display:grid;gap:6px;}
+  .tax-seo-card a{color:var(--gold2);font-weight:800;text-underline-offset:3px;}
+  .tax-seo-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted2);font-weight:900;margin-bottom:7px;}
+  .tax-seo-sources{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .tax-seo-sources a{display:inline-flex;align-items:center;min-height:34px;padding:7px 10px;border-radius:999px;border:1px solid var(--border2);background:rgba(255,255,255,.025);font-size:11px;text-decoration:none;}
+  @media(max-width:720px){.tax-seo-grid{grid-template-columns:1fr}.tax-seo-card{padding:15px;border-radius:18px;}}
 </style>
 </head>
 <body>
@@ -1261,8 +1276,8 @@
   <!-- HEADER -->
   <div class="header">
     <div class="header-badge">🇺🇸 <span>USA</span> · Updated 2026</div>
-    <h1>USA Freelance Tax <span class="h1-nowrap">Estimator <em>(2025–2026)</em></span></h1>
-    <p>Estimate your take-home after federal, self-employment, and optional state taxes.</p>
+    <h1>Freelance Tax Calculator for US Freelancers</h1>
+    <p>Estimate 2026 take-home, self-employment tax, federal tax, quarterly payments, and optional state tax; switch to 2025 when needed.</p>
     <div class="year-pill">
       <button type="button" id="yr2025" onclick="setYear(2025)">2025</button>
       <button type="button" id="yr2026" class="active" onclick="setYear(2026)">2026</button>
@@ -1986,6 +2001,64 @@
     </div>
   </div>
 
+
+<section class="tax-seo-guide" aria-label="Freelance tax calculator guide">
+  <div class="tax-seo-guide-inner">
+    <article class="tax-seo-card">
+      <div class="tax-seo-kicker">2026 US freelancer tax planning</div>
+      <h2>How the Freelance Tax Calculator Works</h2>
+      <p>Start with annual or monthly freelance income, subtract business expenses, choose filing status, and then adjust only the options that apply to you. The estimator models federal income tax and self-employment tax separately, can add an optional state estimate, and shows take-home plus a quarterly planning amount.</p>
+      <ol>
+        <li>Enter gross freelance income and business expenses.</li>
+        <li>Select 2026 or 2025, filing status, and any relevant advanced assumptions.</li>
+        <li>Review self-employment tax, federal tax, deductions or credits, and estimated take-home.</li>
+        <li>Use the quarterly section as a planning estimate, then verify filing decisions against your own records and current IRS guidance.</li>
+      </ol>
+    </article>
+
+    <div class="tax-seo-grid">
+      <article class="tax-seo-card">
+        <h2>Self-Employment Tax</h2>
+        <p>Self-employment tax is separate from federal income tax. IRS guidance describes it as Social Security and Medicare tax for people who work for themselves. This calculator uses the selected tax year's Social Security wage base, Medicare component, and Additional Medicare rules where applicable, while keeping the deductible half-SE calculation separate from Additional Medicare Tax.</p>
+      </article>
+
+      <article class="tax-seo-card">
+        <h2>Quarterly Estimated Taxes</h2>
+        <p>Federal income tax is pay-as-you-go. Self-employed people may need estimated payments when withholding does not cover enough tax. The estimator can show a quarterly planning amount and supports prior-year tax, prior-year AGI, and withholding inputs for its safe-harbor comparison. Actual required payments depend on your full tax situation.</p>
+      </article>
+    </div>
+
+    <article class="tax-seo-card">
+      <h2>Freelance Tax Worked Example</h2>
+      <p><strong>Scenario:</strong> 2026, Single, $100,000 gross freelance income, $20,000 business expenses, federal only, no W-2 income, no dependents, with the QBI estimate left on. The calculator begins with <strong>$80,000 of business profit</strong>, then applies its current self-employment-tax, half-SE-deduction, deduction, QBI, federal-bracket, and quarterly-planning logic before showing estimated take-home.</p>
+      <p style="margin-top:8px;">Changing filing status, state settings, retirement contributions, dependents, W-2 wages, itemized deductions, withholding, or prior-year safe-harbor inputs can materially change the result, so the example is a walkthrough rather than a universal tax outcome.</p>
+    </article>
+
+    <article class="tax-seo-card">
+      <h2>Methodology & IRS Sources</h2>
+      <p><strong>Last reviewed: September 26, 2026.</strong> This calculator is an estimate for planning and is not tax advice. It uses the selected year's tax data and the assumptions shown in the interface; some state, entity, credit, deduction, and multi-state situations remain simplified.</p>
+      <div class="tax-seo-sources" aria-label="IRS sources">
+        <a href="https://www.irs.gov/publications/p505" target="_blank" rel="noopener noreferrer">IRS Publication 505 (2026)</a>
+        <a href="https://www.irs.gov/businesses/small-businesses-self-employed/self-employed-individuals-tax-center" target="_blank" rel="noopener noreferrer">IRS Self-Employed Tax Center</a>
+        <a href="https://www.irs.gov/taxtopics/tc554" target="_blank" rel="noopener noreferrer">IRS Topic 554: Self-Employment Tax</a>
+        <a href="https://www.irs.gov/businesses/small-businesses-self-employed/estimated-taxes" target="_blank" rel="noopener noreferrer">IRS Estimated Taxes</a>
+      </div>
+    </article>
+
+    <article class="tax-seo-card">
+      <h2>Freelance Tax FAQ</h2>
+      <h3>Does this calculator include self-employment tax?</h3>
+      <p>Yes. It estimates self-employment tax separately from federal income tax and reflects the selected year's Social Security wage base and Medicare-related rules used by the tool.</p>
+      <h3>Is the quarterly amount the exact payment I must send?</h3>
+      <p>No. It is a planning estimate based on the information you enter. Withholding, prior-year tax, prior-year AGI, income changes, credits, and other tax facts can change what you actually need to pay.</p>
+      <h3>Can I use the result as tax advice?</h3>
+      <p>No. Use it for planning and scenario comparison. Verify important filing, entity, state, and payment decisions with current IRS guidance or a qualified tax professional.</p>
+      <h3>What should I do after estimating take-home?</h3>
+      <p>You can continue to the <a href="income-goal-planner.html">Freelance Income Goal Calculator</a> to translate take-home needs into a revenue target, then use the Budget Planner for cash planning.</p>
+    </article>
+  </div>
+</section>
+
 </div><!-- /wrap -->
 
 <section class="tool-share-section tool-share-section--gold" data-share-title="Tax Estimator" data-share-text="Use this premium freelance tax estimator from USA Freelance Calculator Toolkit to plan take-home and quarterly tax.">
@@ -1993,7 +2066,7 @@
     <div>
       <div class="tool-share-eyebrow">Share This Tool</div>
       <h2 class="tool-share-title">Share this tax-planning tool with another freelancer.</h2>
-      <p class="tool-share-description">This keeps the end of the estimator clean on both mobile and desktop while still giving users a native share action, direct link copy, and compact social shortcuts.</p>
+      <p class="tool-share-description">Use the share or copy-link options to send the live estimator quickly on mobile or desktop.</p>
     </div>
     <div class="tool-share-actions">
       <button class="tool-share-button tool-share-button--primary" type="button" data-tool-share-action="native">Share This Tool</button>
