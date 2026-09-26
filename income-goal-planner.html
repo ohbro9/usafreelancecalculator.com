@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>USA Freelance Income Goal Planner | Free Goal Calculator</title>
-  <meta name="description" content="Plan your freelance income goals with taxes, fees, utilization, and required rate targets. Free USA income goal planner." />
+  <title>Freelance Income Goal Calculator | Find Your Required Rate</title>
+  <meta name="description" content="Turn your desired freelance take-home into the gross revenue, hourly rate, and billable hours you may need after taxes, fees, and business expenses." />
   <meta name="keywords" content="income goal planner, freelance goal calculator, freelance income target, required hourly rate, freelance planning" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="USAFreelanceCalculator.com" />
@@ -15,19 +15,19 @@
   <link rel="canonical" href="https://usafreelancecalculator.com/income-goal-planner.html" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="USA Freelance Calculator" />
-  <meta property="og:title" content="USA Freelance Income Goal Planner" />
-  <meta property="og:description" content="Turn your income target into required rates, billable hours, and planning assumptions." />
+  <meta property="og:title" content="Freelance Income Goal Calculator | Find Your Required Rate" />
+  <meta property="og:description" content="Turn a freelance take-home target into required gross revenue, billable hours, and an hourly rate using editable planning assumptions." />
   <meta property="og:url" content="https://usafreelancecalculator.com/income-goal-planner.html" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="USA Freelance Income Goal Planner" />
-  <meta name="twitter:description" content="Free goal planner for freelancers who want to translate income targets into workable numbers." />
+  <meta name="twitter:title" content="Freelance Income Goal Calculator | Find Your Required Rate" />
+  <meta name="twitter:description" content="Estimate the gross revenue, billable hours, and rate needed to reach a freelance take-home income goal." />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "USA Freelance Income Goal Planner",
+    "name": "Freelance Income Goal Calculator",
     "url": "https://usafreelancecalculator.com/income-goal-planner.html",
-    "description": "Free income goal planner for freelancers with tax, expense, fee, and utilization assumptions.",
+    "description": "Freelance income goal calculator that estimates required gross revenue, hourly rate, and billable hours from a desired take-home target and editable planning assumptions.",
     "applicationCategory": "FinanceApplication",
     "operatingSystem": "Any"
   }
@@ -1520,6 +1520,60 @@
       letter-spacing:.02em;
     }
 
+    /* TASK 6 — INCOME GOAL SEARCH SUPPORT */
+    .income-seo-support{
+      width:min(100%, var(--shell-w));
+      margin:22px auto 0;
+      display:grid;
+      gap:14px;
+    }
+    .income-seo-card{
+      padding:20px;
+      border:1px solid var(--line);
+      border-radius:var(--radius-lg);
+      background:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.014)), var(--panel);
+      box-shadow:var(--shadow-sm);
+    }
+    .income-seo-card h2{
+      margin:0;
+      color:var(--text);
+      font-size:1.12rem;
+      line-height:1.25;
+      letter-spacing:-.02em;
+    }
+    .income-seo-card p{
+      margin:9px 0 0;
+      color:var(--text-2);
+      font-size:.94rem;
+      line-height:1.68;
+    }
+    .income-seo-card ul{
+      margin:10px 0 0;
+      padding-left:20px;
+      color:var(--text-2);
+      font-size:.92rem;
+      line-height:1.65;
+    }
+    .income-seo-links{
+      display:flex;
+      flex-wrap:wrap;
+      gap:9px;
+      margin-top:12px;
+    }
+    .income-seo-links a{
+      display:inline-flex;
+      align-items:center;
+      min-height:40px;
+      padding:0 12px;
+      border-radius:999px;
+      border:1px solid var(--line-blue);
+      color:#d9e8ff;
+      background:var(--blue-soft);
+      font-size:.82rem;
+      font-weight:800;
+      text-decoration:none;
+    }
+
     /* PREMIUM MODAL */
     .premium-modal{
       position:fixed;
@@ -2072,9 +2126,9 @@
       <!-- HERO -->
 	      <header class="hero">
 	        <div class="hero-chip">USA • 2026 Smart Planning</div>
-	        <h1 class="hero-title">USA Freelance Income Goal Planner</h1>
+	        <h1 class="hero-title">Freelance Income Goal Calculator</h1>
 	        <p class="hero-subtitle">
-	          Set your take-home target and see your required billing rate, hours plan, and advanced planning insights.
+	          Start with the take-home income you want, then estimate the gross revenue, billable hours, and freelance rate your plan may require.
 	        </p>
 	        <div class="hero-trust" aria-label="Planner Trust Signals">
 	          <div class="hero-trust-pills">
@@ -3033,6 +3087,43 @@
         </article>
       </section>
 
+      <section class="income-seo-support" aria-label="Freelance income goal calculator guide">
+        <article class="income-seo-card">
+          <h2>Take-Home vs Gross Revenue</h2>
+          <p>Your take-home goal is the amount you want left for yourself after the costs you choose to model. Gross revenue is the larger amount your freelance business may need to bill before taxes, platform or payment fees, business expenses, and any planning buffer are accounted for.</p>
+        </article>
+
+        <article class="income-seo-card">
+          <h2>Taxes, Fees, and Expenses Change the Revenue Target</h2>
+          <p>The calculator works backward from your desired take-home. Higher modeled taxes, marketplace or payment fees, business expenses, or a safety buffer can increase the gross revenue required. Use your own assumptions where possible; presets are planning shortcuts, not guaranteed rates or tax advice.</p>
+        </article>
+
+        <article class="income-seo-card">
+          <h2>Income Goal Worked Example</h2>
+          <p>The calculator's current default planning scenario starts with a <strong>$10,000 monthly take-home goal</strong>, a 40-hour workweek, 48 working weeks per year, and 50% billable utilization. With the displayed default expense, buffer, tax, and fee assumptions, the tool shows about <strong>20.0 billable hours per week</strong>, roughly <strong>$11,923 monthly gross revenue</strong>, and a required billing rate of about <strong>$149.03/hr</strong>. Change any assumption and the live result recalculates.</p>
+        </article>
+
+        <article class="income-seo-card">
+          <h2>Income Goal Methodology</h2>
+          <p>The planner starts with your take-home target, models the selected expenses, fees, taxes, and buffer, then estimates the gross revenue needed. It combines that gross target with your work schedule and billable utilization to estimate billable hours and a required rate. Results are planning estimates and should not replace professional tax, legal, or accounting advice.</p>
+        </article>
+
+        <article class="income-seo-card">
+          <h2>Income Goal FAQ</h2>
+          <ul>
+            <li><strong>Is take-home the same as gross revenue?</strong> No. Take-home is your target after the modeled costs; gross is the revenue needed before those modeled costs.</li>
+            <li><strong>What if my platform fee or tax situation is different?</strong> Edit the assumptions instead of treating a preset as universal.</li>
+            <li><strong>How is this different from the Hourly Rate Calculator?</strong> This tool starts from desired take-home and works toward gross revenue, hours, and rate; the Hourly Rate Calculator focuses directly on rate planning from income and available billable time.</li>
+          </ul>
+          <div class="income-seo-links" aria-label="Related freelance calculators">
+            <a href="hourly-rate-calculator.html">Freelance Hourly Rate Calculator</a>
+            <a href="platform-fee-calculator.html">Freelance Platform Fee Calculator</a>
+            <a href="tax-estimator.html">Freelance Tax Calculator</a>
+            <a href="budget-planner.html">Next: Freelance Budget Calculator</a>
+          </div>
+        </article>
+      </section>
+
       <!-- FOOTER -->
       <footer class="footer-actions">
         <div class="action-grid">
@@ -3053,7 +3144,7 @@
       <div>
         <div class="tool-share-eyebrow">Share This Tool</div>
         <h2 class="tool-share-title">Send the goal planner to someone who needs real target-to-rate planning.</h2>
-        <p class="tool-share-description">The section stays separate from the planner actions above so the main tool keeps its premium flow, while sharing still stays easy on mobile and desktop.</p>
+        <p class="tool-share-description">Share or copy the link to send this goal planner quickly on mobile or desktop.</p>
       </div>
       <div class="tool-share-actions">
         <button class="tool-share-button tool-share-button--primary" type="button" data-tool-share-action="native">Share This Tool</button>

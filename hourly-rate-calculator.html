@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5"/>
-    <title>Hourly Rate Calculator | USA Freelance Calculator Toolkit</title>
-    <meta name="description" content="Premium Hourly Rate Calculator for US freelancers. Estimate daily, weekly, monthly, and yearly earnings, compare after-tax take-home, and hand off directly into the connected toolkit.">
+    <title>Freelance Hourly Rate Calculator | Calculate What to Charge</title>
+    <meta name="description" content="Use a freelance hourly rate calculator to estimate what to charge from billable hours, working weeks, time off, expenses, taxes, and income goals.">
     <meta name="keywords" content="freelance calculator toolkit, hourly rate calculator, platform fee calculator, freelancer tax estimator, income goal planner, budget planner, USA freelance">
     <meta name="robots" content="index, follow">
     <meta name="author" content="USAFreelanceCalculator.com">
@@ -13,21 +13,21 @@
     <link rel="stylesheet" href="assets/site-pages.css">
     <script defer src="assets/js/site-share.js"></script>
     <link rel="canonical" href="https://usafreelancecalculator.com/hourly-rate-calculator.html">
-    <meta property="og:title" content="Hourly Rate Calculator | USA Freelance Calculator Toolkit">
-    <meta property="og:description" content="Calculate freelance hourly earnings, take-home estimates, and required rates with a premium no-signup tool built for US freelancers.">
+    <meta property="og:title" content="Freelance Hourly Rate Calculator | Calculate What to Charge">
+    <meta property="og:description" content="Calculate freelance hourly earnings or work backward from an income goal using billable time, working weeks, and rate assumptions.">
     <meta property="og:url" content="https://usafreelancecalculator.com/hourly-rate-calculator.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="USA Freelance Calculator">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Hourly Rate Calculator | USA Freelance Calculator Toolkit">
-    <meta name="twitter:description" content="Premium hourly rate calculator with forward earnings, reverse goal planning, exports, and connected toolkit handoff.">
+    <meta name="twitter:title" content="Freelance Hourly Rate Calculator | Calculate What to Charge">
+    <meta name="twitter:description" content="Estimate what to charge from billable hours and working time, or reverse-plan the hourly rate needed for an income target.">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "WebApplication",
-        "name": "Hourly Rate Calculator",
+        "name": "Freelance Hourly Rate Calculator",
         "url": "https://usafreelancecalculator.com/hourly-rate-calculator.html",
-        "description": "Premium hourly rate calculator for US freelancers with take-home planning and connected toolkit handoff.",
+        "description": "Hourly rate calculator for freelancers using work schedule, billable time, income targets, and connected fee and tax planning.",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Any"
       }
@@ -1437,9 +1437,102 @@
         body.dark .site-footer-note{
             color:#a9b9cf;
         }
-        .hourly-tool-page .site-home,
-        .hourly-tool-page .home-calc-lead{display:none}
         .hourly-tool-page #mainCard{margin-top:18px}
+
+
+        /* TASK 4: DEDICATED HOURLY SEARCH INTENT */
+        .hourly-seo-intro,
+        .hourly-seo-section{
+            max-width:1240px;
+            margin:18px auto 0;
+        }
+        .hourly-seo-intro-card,
+        .hourly-seo-shell{
+            background:var(--surface);
+            border:1px solid var(--line);
+            border-radius:24px;
+            box-shadow:var(--shadow-sm);
+        }
+        .hourly-seo-intro-card{padding:24px}
+        .hourly-seo-kicker{
+            color:var(--accent2);
+            font-size:11px;
+            font-weight:900;
+            letter-spacing:.12em;
+            text-transform:uppercase;
+        }
+        .hourly-seo-intro h1{
+            margin:9px 0 10px;
+            color:var(--text);
+            font-size:clamp(32px,4.5vw,52px);
+            line-height:1;
+            letter-spacing:-.045em;
+        }
+        .hourly-seo-intro p,
+        .hourly-seo-section p{
+            margin:0;
+            color:var(--muted);
+            font-size:14px;
+            line-height:1.65;
+        }
+        .hourly-seo-shell{padding:22px}
+        .hourly-seo-section h2{
+            margin:0 0 8px;
+            color:var(--text);
+            font-size:21px;
+            line-height:1.2;
+            letter-spacing:-.025em;
+        }
+        .hourly-seo-grid{
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:12px;
+            margin-top:14px;
+        }
+        .hourly-seo-card,
+        .hourly-seo-faq,
+        .hourly-seo-related{
+            padding:17px;
+            background:var(--surface-3);
+            border:1px solid var(--line);
+            border-radius:18px;
+        }
+        .hourly-seo-example{
+            margin-top:10px;
+            padding:12px;
+            border-radius:14px;
+            background:var(--surface-2);
+            border:1px solid var(--line-soft);
+            color:var(--text);
+            font-size:13px;
+            line-height:1.65;
+        }
+        .hourly-seo-note{margin-top:8px!important;font-size:12px!important;color:var(--muted2)!important}
+        .hourly-seo-faq,
+        .hourly-seo-related{margin-top:12px}
+        .hourly-seo-faq details{padding:10px 0;border-top:1px solid var(--line)}
+        .hourly-seo-faq details:first-of-type{border-top:0;padding-top:2px}
+        .hourly-seo-faq summary{cursor:pointer;color:var(--text);font-weight:800}
+        .hourly-seo-faq details p{margin-top:6px}
+        .hourly-seo-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+        .hourly-seo-links a{
+            display:inline-flex;
+            align-items:center;
+            min-height:38px;
+            padding:7px 11px;
+            border:1px solid var(--line);
+            border-radius:999px;
+            background:var(--surface-2);
+            color:var(--text);
+            font-size:12px;
+            font-weight:800;
+            text-decoration:none;
+        }
+        @media(max-width:760px){
+            .hourly-seo-intro-card,.hourly-seo-shell{padding:18px}
+            .hourly-seo-grid{grid-template-columns:1fr}
+            .hourly-seo-intro h1{font-size:34px}
+        }
 
         /* UTILITY */
         .mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-14{margin-top:14px}
@@ -1530,264 +1623,13 @@
 <div id="app">
     <button type="button" class="dm-btn" id="dmBtn"><span id="dmIcon">☀️</span><span id="dmLbl">Light</span></button>
 
-    <section class="site-home" aria-label="Homepage overview">
-        <div class="home-hero">
-            <div class="home-hero-card">
-                <div class="home-kicker">USA Freelance Calculator Toolkit</div>
-                <h1 class="home-headline">One premium toolkit for freelance rates, fees, tax, goals, and budgeting.</h1>
-                <p class="home-sub">Use each tool separately or move through one connected workflow. Start with the hourly calculator below, or jump directly into the exact tool you need.</p>
-                <div class="home-cta-row">
-                    <a class="home-cta primary" href="#mainCard">Start with Hourly Rate</a>
-                    <a class="home-cta secondary" href="#homeTools">See All 5 Tools</a>
-                </div>
-                <div class="home-pill-row">
-                    <span class="home-pill">⚡ Instant live calculation</span>
-                    <span class="home-pill">🧠 Connected toolkit handoff</span>
-                    <span class="home-pill">💾 Saved in your browser</span>
-                    <span class="home-pill">🖼️ PNG / PDF exports</span>
-                    <span class="home-pill">🇺🇸 Built for US freelancers</span>
-                </div>
-            </div>
-            <div class="home-panel-card">
-                <div class="home-panel-kicker">5 Tools • One Workflow</div>
-                <h2 class="home-panel-title">Open any tool directly, or stay in the guided sequence.</h2>
-                <p class="home-panel-copy">Above the fold, the homepage now stays tighter and more hub-like. The first full tool still starts below, but direct links stay visible immediately.</p>
-                <div class="home-preview-list" aria-label="Quick access to all tools">
-                    <a class="home-preview-link" href="#mainCard">
-                        <span class="home-preview-left">
-                            <span class="home-preview-icon" aria-hidden="true">⏱</span>
-                            <span class="home-preview-text">
-                                <span class="home-preview-name">Hourly Rate</span>
-                                <span class="home-preview-meta">Primary start point for the connected toolkit</span>
-                            </span>
-                        </span>
-                        <span class="home-preview-arrow" aria-hidden="true">↘</span>
-                    </a>
-                    <a class="home-preview-link" href="platform-fee-calculator.html">
-                        <span class="home-preview-left">
-                            <span class="home-preview-icon" aria-hidden="true">💸</span>
-                            <span class="home-preview-text">
-                                <span class="home-preview-name">Platform Fees</span>
-                                <span class="home-preview-meta">Client pays vs what you keep before tax</span>
-                            </span>
-                        </span>
-                        <span class="home-preview-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="home-preview-link" href="tax-estimator.html">
-                        <span class="home-preview-left">
-                            <span class="home-preview-icon" aria-hidden="true">🏛️</span>
-                            <span class="home-preview-text">
-                                <span class="home-preview-name">Tax Estimator</span>
-                                <span class="home-preview-meta">Federal + self-employment estimate</span>
-                            </span>
-                        </span>
-                        <span class="home-preview-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="home-preview-link" href="income-goal-planner.html">
-                        <span class="home-preview-left">
-                            <span class="home-preview-icon" aria-hidden="true">🎯</span>
-                            <span class="home-preview-text">
-                                <span class="home-preview-name">Income Goal</span>
-                                <span class="home-preview-meta">Translate targets into required gross planning</span>
-                            </span>
-                        </span>
-                        <span class="home-preview-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="home-preview-link" href="budget-planner.html">
-                        <span class="home-preview-left">
-                            <span class="home-preview-icon" aria-hidden="true">📊</span>
-                            <span class="home-preview-text">
-                                <span class="home-preview-name">Budget Planner</span>
-                                <span class="home-preview-meta">Final sink for reserve, runway, and report export</span>
-                            </span>
-                        </span>
-                        <span class="home-preview-arrow" aria-hidden="true">→</span>
-                    </a>
-                </div>
-                <div class="home-panel-notes">
-                    <div class="home-panel-note">
-                        <div class="home-panel-note-k">Start Point</div>
-                        <div class="home-panel-note-v">Hourly First</div>
-                        <div class="home-panel-note-t">Current toolkit logic still begins from the hourly calculator.</div>
-                    </div>
-                    <div class="home-panel-note">
-                        <div class="home-panel-note-k">Handoff</div>
-                        <div class="home-panel-note-v">Browser Saved</div>
-                        <div class="home-panel-note-t">Latest shared amount replaces old toolkit data automatically.</div>
-                    </div>
-                    <div class="home-panel-note">
-                        <div class="home-panel-note-k">Usage Style</div>
-                        <div class="home-panel-note-v">Standalone + Flow</div>
-                        <div class="home-panel-note-t">Jump directly into any tool without losing the full connected path.</div>
-                    </div>
-                </div>
-                <div class="home-strip">
-                    <span class="home-strip-pill">Hourly → Fees → Tax → Goal → Budget</span>
-                    <span class="home-strip-pill">Standalone direct links included</span>
-                    <span class="home-strip-pill">No account required</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="home-tools-card" id="homeTools">
-            <div class="home-section-head">
-                <div>
-                    <div class="eyebrow">Tool Access</div>
-                    <div class="title" style="margin-top:4px;">Use every tool directly</div>
-                </div>
-                <div class="home-section-copy">The toolkit is designed for two styles of use: guided flow from Hourly Rate, or direct access to any tool when you already know what you need.</div>
-            </div>
-            <div class="home-tool-grid">
-                <a class="home-tool-card featured" href="#mainCard">
-                    <div class="home-tool-top">
-                        <span class="home-tool-badge">Start Here</span>
-                        <span class="home-tool-icon" aria-hidden="true">⏱</span>
-                    </div>
-                    <div>
-                        <h3 class="home-tool-title">Hourly Rate</h3>
-                        <p class="home-tool-copy">Set your work profile, billable time, and tax view to calculate rate and earnings instantly.</p>
-                    </div>
-                    <div class="home-tool-meta">
-                        <span>Forward + reverse</span>
-                        <span>Toolkit entry</span>
-                    </div>
-                </a>
-                <a class="home-tool-card" href="platform-fee-calculator.html">
-                    <div class="home-tool-top">
-                        <span class="home-tool-badge">Standalone</span>
-                        <span class="home-tool-icon" aria-hidden="true">💸</span>
-                    </div>
-                    <div>
-                        <h3 class="home-tool-title">Platform Fees</h3>
-                        <p class="home-tool-copy">See what the client pays, what you keep, and what should move into tax planning.</p>
-                    </div>
-                    <div class="home-tool-meta">
-                        <span>Client pays</span>
-                        <span>Pre-tax keep</span>
-                    </div>
-                </a>
-                <a class="home-tool-card" href="tax-estimator.html">
-                    <div class="home-tool-top">
-                        <span class="home-tool-badge">Standalone</span>
-                        <span class="home-tool-icon" aria-hidden="true">🏛️</span>
-                    </div>
-                    <div>
-                        <h3 class="home-tool-title">Tax Estimator</h3>
-                        <p class="home-tool-copy">Estimate federal and self-employment tax with a serious finance-first layout.</p>
-                    </div>
-                    <div class="home-tool-meta">
-                        <span>Federal + SE tax</span>
-                        <span>Quarterly view</span>
-                    </div>
-                </a>
-                <a class="home-tool-card" href="income-goal-planner.html">
-                    <div class="home-tool-top">
-                        <span class="home-tool-badge">Planner</span>
-                        <span class="home-tool-icon" aria-hidden="true">🎯</span>
-                    </div>
-                    <div>
-                        <h3 class="home-tool-title">Income Goal</h3>
-                        <p class="home-tool-copy">Turn monthly or yearly targets into required gross income and planning assumptions.</p>
-                    </div>
-                    <div class="home-tool-meta">
-                        <span>Monthly / yearly</span>
-                        <span>Baseline / goal</span>
-                    </div>
-                </a>
-                <a class="home-tool-card" href="budget-planner.html">
-                    <div class="home-tool-top">
-                        <span class="home-tool-badge">Final Sink</span>
-                        <span class="home-tool-icon" aria-hidden="true">📊</span>
-                    </div>
-                    <div>
-                        <h3 class="home-tool-title">Budget Planner</h3>
-                        <p class="home-tool-copy">Finish with budget structure, tax reserve, runway, presets, and export-ready planning.</p>
-                    </div>
-                    <div class="home-tool-meta">
-                        <span>Runway</span>
-                        <span>Budget report</span>
-                    </div>
-                </a>
-            </div>
-        </div>
-
-        <div class="home-flow-card">
-            <div class="home-section-head">
-                <div>
-                    <div class="eyebrow">Connected Flow</div>
-                    <div class="title" style="margin-top:4px;">How the toolkit works together</div>
-                </div>
-                <div class="home-section-copy">Each step can hand off the right amount to the next tool. Latest shared data replaces old data, so the flow stays clean without forcing a manual reset.</div>
-            </div>
-            <div class="home-flow-grid">
-                <div class="home-flow-step">
-                    <div class="home-flow-num">1</div>
-                    <h3 class="home-flow-title">Hourly Rate</h3>
-                    <p class="home-flow-copy">Start with your rate, schedule, and billable assumptions to create a realistic earnings base.</p>
-                </div>
-                <div class="home-flow-step">
-                    <div class="home-flow-num">2</div>
-                    <h3 class="home-flow-title">Platform Fees</h3>
-                    <p class="home-flow-copy">See the difference between what the client pays and what you actually keep before tax.</p>
-                </div>
-                <div class="home-flow-step">
-                    <div class="home-flow-num">3</div>
-                    <h3 class="home-flow-title">Tax Estimator</h3>
-                    <p class="home-flow-copy">Estimate federal and self-employment tax using the gross or pre-tax amount from the previous step.</p>
-                </div>
-                <div class="home-flow-step">
-                    <div class="home-flow-num">4</div>
-                    <h3 class="home-flow-title">Income Goal</h3>
-                    <p class="home-flow-copy">Map imported gross context into goal planning without creating double-tax confusion.</p>
-                </div>
-                <div class="home-flow-step">
-                    <div class="home-flow-num">5</div>
-                    <h3 class="home-flow-title">Budget Planner</h3>
-                    <p class="home-flow-copy">Finish with a structured budget, reserve target, runway snapshot, and final export layer.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="home-trust-card">
-            <div class="home-section-head">
-                <div>
-                    <div class="eyebrow">Why This Feels Premium</div>
-                    <div class="title" style="margin-top:4px;">Clear trust signals without bloating the experience</div>
-                </div>
-                <div class="home-section-copy">The toolkit stays light on GitHub Pages, keeps state in the browser, and gives direct exports without forcing signups or cluttering the flow.</div>
-            </div>
-            <div class="home-trust-grid">
-                <div class="home-trust-item">
-                    <h3 class="home-trust-title">Instant by default</h3>
-                    <p class="home-trust-copy">Calculations update live as you type, so the site feels like a real product instead of a basic static form.</p>
-                </div>
-                <div class="home-trust-item">
-                    <h3 class="home-trust-title">Saved locally</h3>
-                    <p class="home-trust-copy">Tool state and toolkit handoff live in your browser, which keeps repeat usage fast and friction-free.</p>
-                </div>
-                <div class="home-trust-item">
-                    <h3 class="home-trust-title">Exports included</h3>
-                    <p class="home-trust-copy">PDF, image, and summary actions stay available inside the tools for shareable planning output.</p>
-                </div>
-                <div class="home-trust-item">
-                    <h3 class="home-trust-title">Standalone or connected</h3>
-                    <p class="home-trust-copy">Each tool can work on its own, but the toolkit flow is there when you want one guided sequence.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <div class="home-calc-lead">
-        <div class="home-calc-card">
-            <div class="eyebrow">Toolkit Start Point</div>
-            <div class="title" style="margin-top:4px;">Open the first full tool below</div>
-            <p class="home-calc-copy">From this point onward, the page shifts from toolkit hub into the full Hourly Rate Calculator. The toolkit landing stays above; the detailed first tool starts here.</p>
-            <div class="home-calc-actions">
-                <a class="home-calc-link primary" href="#mainCard">Open Hourly Calculator</a>
-                <a class="home-calc-link secondary" href="#homeTools">Back to Toolkit Links</a>
-            </div>
-        </div>
+<section class="hourly-seo-intro" aria-labelledby="hourlyPageTitle">
+    <div class="hourly-seo-intro-card">
+        <div class="hourly-seo-kicker">Freelance Rate Planning</div>
+        <h1 id="hourlyPageTitle">Freelance Hourly Rate Calculator</h1>
+        <p>Calculate what to charge from your hourly rate, working schedule, weeks off, and realistic billable time. Use forward mode to estimate earnings or reverse mode to work backward from an income target.</p>
     </div>
+</section>
 
     <div id="mainCard">
         <div class="tabs">
@@ -2198,6 +2040,70 @@ You can set goals per year, month, or week.">What's this?</button>
         </div>
     </div>
 </div>
+
+
+<section class="hourly-seo-section" aria-label="Freelance hourly rate guide">
+    <div class="hourly-seo-shell">
+        <h2>How to Calculate Your Freelance Hourly Rate</h2>
+        <p>Start with the time you can realistically sell to clients rather than treating every working hour as billable. The calculator above combines your hourly rate, hours per day, days per week, weeks per year, and billable percentage to estimate earning capacity. Reverse mode uses the same work-capacity inputs to estimate the rate needed for a chosen income target.</p>
+
+        <div class="hourly-seo-grid">
+            <article class="hourly-seo-card">
+                <h2>Freelance Hourly Rate Formula</h2>
+                <p>For the forward calculation, billable hours per year equal hours per day × days per week × weeks per year × billable percentage. Estimated yearly gross equals hourly rate × billable hours per year. When Average Monthly is selected, the monthly estimate is yearly gross ÷ 12.</p>
+            </article>
+
+            <article class="hourly-seo-card">
+                <h2>Billable vs Non-Billable Hours</h2>
+                <p>Billable time is paid client work. Non-billable time can include proposals, admin, invoicing, learning, marketing, and other work that does not directly produce client revenue. Using a billable percentage keeps the rate calculation tied to the hours you realistically expect to sell.</p>
+            </article>
+
+            <article class="hourly-seo-card">
+                <h2>Time Off, Expenses, and Taxes</h2>
+                <p>Weeks per year lets you account for unpaid time off or other weeks you do not expect to bill. Expenses and tax estimates are separate planning layers, so a gross hourly rate is not automatically the same as take-home pay. Use the dedicated tax tool for a fuller tax estimate instead of treating one percentage as universal.</p>
+            </article>
+
+            <article class="hourly-seo-card">
+                <h2>Freelance Hourly Rate Worked Example</h2>
+                <p><strong>Example assumptions:</strong> $50.01 per hour, 8 hours per day, 5 days per week, 48 working weeks per year, 70% billable time, and Average Monthly view.</p>
+                <div class="hourly-seo-example">Billable hours per year = 8 × 5 × 48 × 70% = 1,344 hours. Estimated yearly gross = $50.01 × 1,344 = $67,213.44. Average monthly gross = $67,213.44 ÷ 12 = $5,601.12.</div>
+                <p class="hourly-seo-note">This example illustrates the calculator’s gross-income method. Taxes, platform fees, expenses, and actual client demand can change take-home results.</p>
+            </article>
+        </div>
+
+        <div class="hourly-seo-faq">
+            <h2>Freelance Hourly Rate FAQ</h2>
+            <details>
+                <summary>Why does billable percentage affect the rate?</summary>
+                <p>If only part of your working time can be charged to clients, the sellable hours available to produce your target income are lower. Reverse mode reflects that by spreading the target across the billable hours you entered.</p>
+            </details>
+            <details>
+                <summary>How should I account for unpaid time off?</summary>
+                <p>Use Weeks per Year to model the number of weeks you realistically expect to work and bill. A lower working-week count reduces annual earning capacity at the same hourly rate.</p>
+            </details>
+            <details>
+                <summary>Is the calculated hourly rate my take-home rate?</summary>
+                <p>Not necessarily. Gross client revenue can still be reduced by platform or payment fees, business expenses, and taxes. The connected tools let you model those stages separately.</p>
+            </details>
+            <details>
+                <summary>Can I start with an income goal instead of an hourly rate?</summary>
+                <p>Yes. Switch to Income Goal → Hourly Rate to work backward from a weekly, monthly, or yearly target using your selected schedule and billable-time assumptions.</p>
+            </details>
+        </div>
+
+        <div class="hourly-seo-related">
+            <h2>Related Freelance Calculators</h2>
+            <p>Continue from gross earning capacity into fees, taxes, income goals, or budgeting when those steps are relevant to your plan.</p>
+            <div class="hourly-seo-links">
+                <a href="platform-fee-calculator.html">Freelance Platform Fee Calculator</a>
+                <a href="tax-estimator.html">Freelance Tax Estimator</a>
+                <a href="income-goal-planner.html">Freelance Income Goal Planner</a>
+                <a href="budget-planner.html">Freelance Budget Calculator</a>
+                <a href="index.html">All 5 Freelance Calculators</a>
+            </div>
+        </div>
+    </div>
+</section>
 
 <section class="tool-share-section tool-share-section--light" data-share-title="Hourly Rate Calculator" data-share-text="Try this premium hourly rate calculator from USA Freelance Calculator Toolkit.">
     <div class="tool-share-card">

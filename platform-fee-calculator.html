@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>USA Freelance Platform Fee Calculator | Free Tool</title>
-  <meta name="description" content="Free USA freelance platform fee calculator. Compare platform, payment, and payout fees to see what you actually keep before tax."/>
+  <title>Freelance Platform Fee Calculator | See What You Keep</title>
+  <meta name="description" content="Calculate freelance platform fees to see what you keep when a client pays, or how much a client should pay for your target take-home, with editable fee assumptions."/>
   <meta name="keywords" content="platform fee calculator, upwork fee calculator, fiverr fee calculator, freelancer payout calculator, freelance fee calculator"/>
   <meta name="robots" content="index, follow"/>
   <meta name="author" content="USAFreelanceCalculator.com"/>
@@ -15,19 +15,19 @@
   <link rel="canonical" href="https://usafreelancecalculator.com/platform-fee-calculator.html"/>
   <meta property="og:type" content="website"/>
   <meta property="og:site_name" content="USA Freelance Calculator"/>
-  <meta property="og:title" content="USA Freelance Platform Fee Calculator"/>
-  <meta property="og:description" content="See how much you keep after platform fees, processing fees, payouts, and optional tax assumptions."/>
+  <meta property="og:title" content="Freelance Platform Fee Calculator | See What You Keep"/>
+  <meta property="og:description" content="Compare Client Pays and I Want to Keep scenarios with editable platform, payment, payout, and optional tax assumptions."/>
   <meta property="og:url" content="https://usafreelancecalculator.com/platform-fee-calculator.html"/>
   <meta name="twitter:card" content="summary"/>
-  <meta name="twitter:title" content="USA Freelance Platform Fee Calculator"/>
-  <meta name="twitter:description" content="Free tool for Upwork, Fiverr, Freelancer, payment fees, and retained earnings planning."/>
+  <meta name="twitter:title" content="Freelance Platform Fee Calculator | See What You Keep"/>
+  <meta name="twitter:description" content="See what you keep after freelance platform fees or reverse-calculate what a client should pay."/>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "USA Freelance Platform Fee Calculator",
+    "name": "Freelance Platform Fee Calculator",
     "url": "https://usafreelancecalculator.com/platform-fee-calculator.html",
-    "description": "Free platform fee calculator for US freelancers to compare what they keep after fees and payouts.",
+    "description": "Freelance platform fee calculator for forward Client Pays and reverse I Want to Keep planning with editable fee assumptions.",
     "applicationCategory": "FinanceApplication",
     "operatingSystem": "Any"
   }
@@ -2092,6 +2092,23 @@
     .pfc-trust-row{gap:7px;margin-top:10px;}
     .pfc-trust-chip{font-size:10px;min-height:28px;padding:6px 10px;}
   }
+
+  /* TASK 5 — supporting SEO/trust content below the calculator */
+  .pfc-seo-guide{max-width:1140px;margin:22px auto 0;padding:0 0 10px;}
+  .pfc-seo-guide-inner{display:grid;gap:14px;}
+  .pfc-seo-card{background:var(--pfc-shell);border:1px solid var(--pfc-line);border-radius:22px;padding:18px;box-shadow:var(--pfc-shadow-sm);}
+  .dark .pfc-seo-card{background:#162032;border-color:#334155;}
+  .pfc-seo-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .pfc-seo-card h2{margin:0 0 9px;font-size:clamp(19px,2.5vw,25px);line-height:1.15;letter-spacing:-.03em;color:var(--pfc-text);}
+  .pfc-seo-card h3{margin:14px 0 5px;font-size:15px;line-height:1.3;color:var(--pfc-text);}
+  .pfc-seo-card p,.pfc-seo-card li{color:var(--pfc-muted);font-size:13px;line-height:1.65;}
+  .pfc-seo-card ul,.pfc-seo-card ol{margin:9px 0 0 20px;display:grid;gap:6px;}
+  .pfc-seo-card a{color:var(--pfc-blue2);font-weight:800;text-underline-offset:3px;}
+  .pfc-seo-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pfc-muted2);font-weight:900;margin-bottom:7px;}
+  .pfc-seo-example{font-variant-numeric:tabular-nums;}
+  .pfc-seo-source-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .pfc-seo-source-list a{display:inline-flex;min-height:34px;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid var(--pfc-line);background:var(--pfc-panel);font-size:11px;text-decoration:none;}
+  @media(max-width:720px){.pfc-seo-guide{margin-top:16px}.pfc-seo-grid{grid-template-columns:1fr}.pfc-seo-card{padding:15px;border-radius:18px;}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="assets/js/toolkit-core.js"></script>
@@ -2105,8 +2122,8 @@
       <div class="pfc-topbar">
         <div class="pfc-brand">
           <div class="pfc-brand-badge">💼 Connected Toolkit &nbsp;·&nbsp; 🇺🇸 USA 2026</div>
-          <h1 class="pfc-brand-h1">USA Freelance Platform<br class="pfc-h1-br"> Fee Calculator</h1>
-          <p class="pfc-brand-sub">See exactly what you keep after platform fees, payment processing, withdrawals, and taxes — instantly.</p>
+          <h1 class="pfc-brand-h1">Freelance Platform Fee Calculator</h1>
+          <p class="pfc-brand-sub">See what you keep after editable platform and payout fees, or reverse-calculate what a client should pay for your target amount.</p>
         </div>
         <button type="button" class="pfc-dm-btn" id="dmBtn" onclick="toggleDark()">
           <span id="dmIcon">☀️</span>
@@ -2254,7 +2271,18 @@
 
           <!-- TIERED NOTE -->
           <div id="tieredNote" class="pfc-notice">
-            &#9889; Upwork now charges a flat 10% fee on all marketplace contracts. Some special programs may vary from 0&ndash;15%.
+            <strong>Fee preset guidance.</strong> Preset rates are illustrative starting points, not universal platform rates. Your actual account or contract fee may differ. Use the fee shown in your account when available, or choose <strong>Custom</strong> to enter the exact rate.
+  <div style="margin-top:8px;">Upwork currently documents freelancer service fees from 0% to 15% per contract, with the applicable rate shown before you submit or accept the contract.</div>
+  <div style="margin-top:8px;"><strong>Assumptions:</strong> platform fees, special programs, payout methods, currencies, regions, and account terms can change. Confirm the amounts shown by your platform or payout provider before relying on an estimate.</div>
+  <div style="margin-top:8px;"><strong>Last reviewed:</strong> September 26, 2026</div>
+  <div style="margin-top:8px;"><strong>Official sources:</strong>
+    <a href="https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee" target="_blank" rel="noopener noreferrer">Upwork</a> &middot;
+    <a href="https://help.fiverr.com/hc/en-us/articles/9234443621137-Your-earnings-page" target="_blank" rel="noopener noreferrer">Fiverr</a> &middot;
+    <a href="https://www.freelancer.com/feesandcharges" target="_blank" rel="noopener noreferrer">Freelancer.com</a> &middot;
+    <a href="https://www.toptal.com/freelance-jobs/faq" target="_blank" rel="noopener noreferrer">Toptal</a> &middot;
+    <a href="https://www.guru.com/help/freelancer/about-guru-freelancer/fees/job-fee" target="_blank" rel="noopener noreferrer">Guru</a> &middot;
+    <a href="https://support.peopleperhour.com/hc/en-us/articles/205218337-Freelancer-commission-fees" target="_blank" rel="noopener noreferrer">PeoplePerHour</a>
+  </div>
           </div>
 
           <!-- CUSTOM FEE PANEL -->
@@ -2595,7 +2623,7 @@
                   <div class="wd-chip" data-wd="custom">Custom</div>
                 </div>
                 <input type="number" id="withdrawalFee" class="pfc-fake-input" style="width:100%;margin-top:8px;" value="0" min="0" step="0.01" placeholder="Enter custom amount">
-                <div class="pfc-hint">Upwork: $2 (ACH) / $30 (wire) &middot; Fiverr: $2 bank, $3 PayPal &middot; Freelancer: $2</div>
+                <div class="pfc-hint">Withdrawal and payout fees vary by method, location, currency, and account. Enter the amount shown by your platform or payout provider.</div>
               </div>
 
               <div id="legacySETaxWrap">
@@ -2862,6 +2890,61 @@
     </section>
   </div>
 
+
+  <section class="pfc-seo-guide" aria-label="Platform fee calculator guide">
+    <div class="pfc-seo-guide-inner">
+      <article class="pfc-seo-card">
+        <div class="pfc-seo-kicker">Freelancer fee planning</div>
+        <h2>How the Freelance Platform Fee Calculator Works</h2>
+        <p><strong>Client Pays</strong> starts with the project amount and subtracts the editable platform fee plus any payment, payout, or optional tax assumptions you turn on. <strong>I Want to Keep</strong> works in reverse: enter the amount you want to retain and the calculator estimates the client charge needed to support that target under the same fee setup.</p>
+        <ol>
+          <li>Enter the client amount or your target keep amount.</li>
+          <li>Use a preset only as a starting point, or choose Custom and enter the fee shown in your own account or contract.</li>
+          <li>Add only the processor, payout, or tax assumptions that actually apply to your situation.</li>
+          <li>Review the live result, comparison, and next-tool handoff before using the number in a quote or plan.</li>
+        </ol>
+      </article>
+
+      <div class="pfc-seo-grid">
+        <article class="pfc-seo-card pfc-seo-example">
+          <h2>Platform Fee Worked Example</h2>
+          <p><strong>Client Pays example:</strong> with a $1,000.55 project amount, an illustrative 10% platform fee, and no extra processor, payout, or tax deductions, the calculator keeps cent-level line-item rounding and shows <strong>$900.49</strong> retained.</p>
+          <p style="margin-top:8px;"><strong>I Want to Keep example:</strong> under the same illustrative 10% fee and no extras, a $1,000.55 keep target requires a client charge of <strong>$1,111.72</strong>.</p>
+          <p style="margin-top:8px;">These are calculator examples, not claims that every platform charges 10%.</p>
+        </article>
+
+        <article class="pfc-seo-card">
+          <h2>Why Fees Differ</h2>
+          <p>Actual freelancer fees can vary by platform, contract, account, program, payout method, location, and currency. Upwork currently documents a freelancer service fee that can range from 0% to 15% per contract, while Fiverr's earnings guidance generally describes freelancer earnings as 80% of the completed order amount. Your own account or contract is the source of truth for the rate that applies to you.</p>
+          <p style="margin-top:8px;">That is why this tool keeps platform rates editable instead of treating one preset as a universal fee.</p>
+        </article>
+      </div>
+
+      <article class="pfc-seo-card">
+        <h2>Assumptions & Official Sources</h2>
+        <p><strong>Last reviewed: September 26, 2026.</strong> Presets are illustrative starting points. The calculator only includes processor, payout, tax, or other deductions that you select, and special programs or account-specific terms can change the real result.</p>
+        <div class="pfc-seo-source-list" aria-label="Official platform fee sources">
+          <a href="https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee" target="_blank" rel="noopener noreferrer">Upwork fee guidance</a>
+          <a href="https://help.fiverr.com/hc/en-us/articles/9234443621137-Your-earnings-page" target="_blank" rel="noopener noreferrer">Fiverr earnings</a>
+          <a href="https://www.freelancer.com/feesandcharges" target="_blank" rel="noopener noreferrer">Freelancer.com fees</a>
+          <a href="https://www.toptal.com/freelance-jobs/faq" target="_blank" rel="noopener noreferrer">Toptal freelancer FAQ</a>
+          <a href="https://www.guru.com/help/freelancer/about-guru-freelancer/fees/job-fee" target="_blank" rel="noopener noreferrer">Guru job fee</a>
+          <a href="https://support.peopleperhour.com/hc/en-us/articles/205218337-Freelancer-commission-fees" target="_blank" rel="noopener noreferrer">PeoplePerHour commission</a>
+        </div>
+      </article>
+
+      <article class="pfc-seo-card">
+        <h2>Platform Fee FAQ</h2>
+        <h3>Should I use a preset or my exact account fee?</h3>
+        <p>Use the exact fee shown in your account or contract when you have it. Presets are faster for scenarios, but they are not universal platform rates.</p>
+        <h3>What does I Want to Keep calculate?</h3>
+        <p>It reverses the fee setup to estimate the client charge needed for your chosen keep target. This is useful when you know the amount you need to retain after selected fees.</p>
+        <h3>Does the result include taxes automatically?</h3>
+        <p>No. Tax planning is optional on this page. For a fuller US freelancer tax estimate, send the pre-tax amount to the <a href="tax-estimator.html">Freelance Tax Calculator</a>.</p>
+      </article>
+    </div>
+  </section>
+
   <div id="toast" class="toast"></div>
 </div>
 <!-- COPY MODAL -->
@@ -2881,7 +2964,7 @@
     <div>
       <div class="tool-share-eyebrow">Share This Tool</div>
       <h2 class="tool-share-title">Share the fee-planning page that shows what freelancers actually keep.</h2>
-      <p class="tool-share-description">Keep the end-of-page UI premium and compact: one native share action, one copy action, and small social share options for quick sending without a noisy icon strip.</p>
+      <p class="tool-share-description">Use the share or copy-link options to send this fee calculator quickly on mobile or desktop.</p>
     </div>
     <div class="tool-share-actions">
       <button class="tool-share-button tool-share-button--primary" type="button" data-tool-share-action="native">Share This Tool</button>
