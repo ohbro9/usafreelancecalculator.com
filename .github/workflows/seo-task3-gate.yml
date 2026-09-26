@@ -1,0 +1,35 @@
+name: SEO Task 3 Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+  workflow_dispatch:
+
+jobs:
+  task3-red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Confirm Budget SEO RED
+        shell: bash
+        run: |
+          set +e
+          node tests/seo-structure-regression.test.js 2>&1 | tee /tmp/seo-task3-red.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Expected SEO test to be RED before Budget implementation."
+            exit 1
+          fi
+          grep -qi "budget title" /tmp/seo-task3-red.log
+          grep -qi "budget h1" /tmp/seo-task3-red.log
+          grep -qi "budget description owns irregular-income budgeting intent" /tmp/seo-task3-red.log
+          grep -qi "budget supporting heading: how it works" /tmp/seo-task3-red.log
+          grep -qi "budget supporting heading: FAQ" /tmp/seo-task3-red.log
+          echo "Task 3 Budget SEO RED: confirmed"
+      - name: Confirm protected Budget math remains green
+        run: node tests/budget-planner-regression.test.js
