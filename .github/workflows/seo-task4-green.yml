@@ -68,3 +68,5 @@ jobs:
           git add index.html hourly-rate-calculator.html
           git commit -m "feat: separate home and hourly SEO intent"
           git push origin HEAD:feat/seo-growth-v1
+
+# Temporary committed-tree verification trigger for Task 4.
