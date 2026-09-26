@@ -1,0 +1,58 @@
+name: SEO Task 6 RED Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+    paths:
+      - .github/workflows/seo-task6-red.yml
+
+permissions:
+  contents: write
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/seo-growth-v1
+          fetch-depth: 0
+      - name: Apply permanent Task 6 assertions
+        run: python3 .github/tmp/seo-task6-test.py
+      - name: Confirm Android release baseline
+        run: node tests/android-download-page-release.test.js
+      - name: Confirm Task 6 assertions are RED for the intended missing work
+        run: |
+          set +e
+          node tests/seo-structure-regression.test.js > /tmp/task6-red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/task6-red.log
+          test "$status" -eq 1
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/task6-red.log').read_text()
+          required = [
+              'income title',
+              'income h1',
+              'income supporting heading: take-home vs gross',
+              'income supporting heading: worked example',
+              'app social metadata',
+              'app has supportable Android software schema',
+              'sitemap includes app page',
+              '404 has root-safe home link',
+              '404 has root-safe platform link',
+          ]
+          missing = [label for label in required if label not in text]
+          if missing:
+              raise SystemExit(f'Expected Task 6 RED labels missing: {missing}')
+          print('PASS Task 6 RED: intended missing SEO work is detected')
+          PY
+      - name: Commit permanent Task 6 test assertions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/seo-structure-regression.test.js
+          git commit -m "test: pin Task 6 technical SEO requirements"
+          git push origin HEAD:feat/seo-growth-v1
