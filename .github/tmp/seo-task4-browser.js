@@ -56,7 +56,7 @@ function parseMoneyInput(raw) {
 }
 
 async function assertPlatformImport(page, expected, label) {
-  await page.waitForURL('**/platform-fee-calculator.html');
+  await page.waitForURL('**/platform-fee-calculator.html*');
   await page.locator('#amtGross').waitFor({ state: 'visible' });
   await page.waitForTimeout(350);
   const value = await page.locator('#amtGross').inputValue();
@@ -148,7 +148,7 @@ async function checkHourly(browser, name, viewport, isMobile = false) {
     assert.ok(Math.abs(forwardGross.month - 5601.12) < 0.001, `${name}: forward monthly cents`);
 
     await Promise.all([
-      page.waitForURL('**/platform-fee-calculator.html'),
+      page.waitForURL('**/platform-fee-calculator.html*'),
       page.locator('#ctaBtn').click(),
     ]);
     await assertPlatformImport(page, 67213.44, `${name}: forward handoff`);
@@ -176,7 +176,7 @@ async function checkHourly(browser, name, viewport, isMobile = false) {
     assert.notEqual(afterDark, beforeDark, `${name}: dark/light toggle works`);
 
     await Promise.all([
-      page.waitForURL('**/platform-fee-calculator.html'),
+      page.waitForURL('**/platform-fee-calculator.html*'),
       page.locator('#ctaBtn').click(),
     ]);
     await assertPlatformImport(page, 80008.32, `${name}: reverse handoff`);
