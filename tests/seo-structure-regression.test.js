@@ -126,6 +126,37 @@ check('home and hourly H1 are distinct', () => {
   assert.notEqual(tagText(pages.get('home').html, 'h1'), tagText(pages.get('hourly').html, 'h1'));
 });
 
+const budgetHtml = pages.get('budget').html;
+check('budget description owns irregular-income budgeting intent', () => {
+  const description = metaContent(budgetHtml, 'description');
+  assert.match(description, /irregular\s+(?:freelance\s+)?income/i);
+  assert.match(description, /budget/i);
+});
+check('budget supporting heading: how it works', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*How (?:the )?Freelance Budget Calculator Works[^<]*<\/h2>/i);
+});
+check('budget supporting heading: irregular-income example', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*Irregular-Income (?:Worked )?Example[^<]*<\/h2>/i);
+});
+check('budget supporting heading: tax reserve', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*Tax Reserve[^<]*<\/h2>/i);
+});
+check('budget supporting heading: runway or savings', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*(?:Runway|Savings)[^<]*<\/h2>/i);
+});
+check('budget supporting heading: FAQ', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*FAQ[^<]*<\/h2>/i);
+});
+check('budget supporting heading: related tools', () => {
+  assert.match(budgetHtml, /<h2\b[^>]*>[^<]*Related (?:Freelance )?(?:Tools|Calculators|Guides)[^<]*<\/h2>/i);
+});
+check('budget contextual link to Hourly Rate Calculator', () => {
+  assert.match(budgetHtml, /href=["']hourly-rate-calculator\.html["'][^>]*>[^<]*(?:Hourly|Rate)[^<]*<\/a>/i);
+});
+check('budget contextual link to Tax Estimator', () => {
+  assert.match(budgetHtml, /href=["']tax-estimator\.html["'][^>]*>[^<]*(?:Tax|Estimated)[^<]*<\/a>/i);
+});
+
 const platformHtml = pages.get('platform').html;
 check('platform removes stale universal Upwork claim', () => {
   assert.ok(
