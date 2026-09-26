@@ -1,0 +1,106 @@
+name: SEO PR Readiness
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+    paths:
+      - .github/workflows/seo-pr-readiness.yml
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/seo-growth-v1
+          fetch-depth: 0
+
+      - name: Freeze branch identity and permanent diff scope
+        run: |
+          git fetch origin main
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "MAIN=$(git rev-parse origin/main)"
+          test "$(git rev-parse origin/main)" = "d029b291463dab0541c30c94ab01276e74536e64"
+          git merge-base --is-ancestor b2d85c8c3dda64e848428cee3c0a02e71e68a60e HEAD
+          python3 - <<'PY'
+          import subprocess
+          changed=set(subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines())
+          expected={
+            '404.html','app/index.html','budget-planner.html',
+            'docs/superpowers/plans/2026-09-26-seo-growth.md',
+            'docs/superpowers/specs/2026-09-26-seo-growth-design.md',
+            'hourly-rate-calculator.html','income-goal-planner.html','index.html',
+            'platform-fee-calculator.html','sitemap.xml','tax-estimator.html',
+            'tests/seo-structure-regression.test.js',
+            '.github/tmp/seo-pr-readiness.js','.github/workflows/seo-pr-readiness.yml'
+          }
+          if changed != expected:
+              raise SystemExit(f'Unexpected PR-readiness diff: {sorted(changed)}')
+          print('PASS exact final diff scope (+ temporary audit files only)')
+          PY
+          git diff --check origin/main...HEAD -- '*.html' 'sitemap.xml' 'tests/seo-structure-regression.test.js' '.github/tmp/seo-pr-readiness.js' '.github/workflows/seo-pr-readiness.yml'
+
+      - name: Prove calculator runtime scripts remain identical to main
+        run: |
+          python3 - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+          files=['index.html','hourly-rate-calculator.html','platform-fee-calculator.html','tax-estimator.html','income-goal-planner.html','budget-planner.html']
+          def runtime_scripts(text):
+              out=[]
+              for m in re.finditer(r'<script\b([^>]*)>([\s\S]*?)</script>',text,re.I):
+                  attrs=m.group(1)
+                  if re.search(r'\bsrc\s*=',attrs,re.I): continue
+                  if re.search(r'type\s*=\s*["\']application/ld\+json["\']',attrs,re.I): continue
+                  out.append(m.group(2).strip())
+              return out
+          for f in files:
+              before=subprocess.check_output(['git','show',f'origin/main:{f}'],text=True)
+              after=Path(f).read_text()
+              if runtime_scripts(before) != runtime_scripts(after):
+                  raise SystemExit(f'Runtime inline scripts changed in {f}')
+              print(f'PASS runtime JS unchanged: {f}')
+          PY
+
+      - name: Run permanent deterministic regressions
+        run: |
+          node tests/seo-structure-regression.test.js
+          node tests/budget-planner-regression.test.js
+          node tests/tax-estimator-regression.test.js
+          node tests/android-download-page-release.test.js
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start temporary branch preview
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/seo-pr-http.log 2>&1 &
+          echo $! >/tmp/seo-pr-http.pid
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/seo-pr-http.log
+          exit 1
+
+      - name: Run Platform precision and Android caret regression
+        env:
+          PFC_BASE_URL: http://127.0.0.1:4173
+        run: node tests/platform-fee-caret.playwright.js
+
+      - name: Run full desktop and mobile PR-readiness audit
+        env:
+          BASE_URL: http://127.0.0.1:4173
+        run: node .github/tmp/seo-pr-readiness.js
+
+      - name: Confirm audit made no tracked product changes
+        run: |
+          test -z "$(git status --porcelain | grep -v '^?? node_modules/' || true)"
+          echo 'PASS tracked tree clean after audit'
