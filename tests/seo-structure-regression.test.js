@@ -191,6 +191,13 @@ check('hourly contextual link to Tax Estimator', () => {
   assert.match(hourlyHtml, /href=["']tax-estimator\.html["'][^>]*>[^<]*Tax[^<]*<\/a>/i);
 });
 
+
+check('hourly source excludes hidden legacy home shell', () => {
+  assert.ok(!/<section\s+class=["']site-home["']/i.test(hourlyHtml), 'hidden legacy Home section must not remain in Hourly source');
+  assert.ok(!/<div\s+class=["']home-calc-lead["']/i.test(hourlyHtml), 'hidden legacy Home-to-Hourly transition block must not remain');
+  assert.ok(!/From this point onward, the page shifts from toolkit hub/i.test(hourlyHtml), 'implementation-style transition copy must not remain in semantic source');
+});
+
 const budgetHtml = pages.get('budget').html;
 check('budget description owns irregular-income budgeting intent', () => {
   const description = metaContent(budgetHtml, 'description');
