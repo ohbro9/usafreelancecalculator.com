@@ -1,0 +1,41 @@
+name: SEO Task 6 Test Normalize
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+    paths:
+      - .github/workflows/seo-task6-test-normalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/seo-growth-v1
+          fetch-depth: 0
+      - name: Normalize metadata assertion values
+        run: python3 .github/tmp/seo-task6-test-normalize.py
+      - name: Confirm only expected Task 6 product REDs remain
+        run: |
+          set +e
+          node tests/seo-structure-regression.test.js > /tmp/task6-normalized.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/task6-normalized.log
+          test "$status" -eq 1
+          if grep -q "tax social metadata" /tmp/task6-normalized.log; then
+            echo 'Tax social metadata false failure still present' >&2
+            exit 1
+          fi
+      - name: Commit test normalization
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/seo-structure-regression.test.js
+          git commit -m "test: normalize social metadata entities"
+          git push origin HEAD:feat/seo-growth-v1
