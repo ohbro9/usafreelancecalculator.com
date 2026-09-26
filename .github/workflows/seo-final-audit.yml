@@ -108,3 +108,5 @@ jobs:
         run: |
           test -z "$(git status --porcelain | grep -v '^?? node_modules/' || true)"
           echo 'PASS audit left tracked tree clean'
+
+      # Triggered after the HTML-aware H1 parser update.
