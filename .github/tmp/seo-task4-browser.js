@@ -51,6 +51,18 @@ async function setInputs(page, values) {
   await page.waitForTimeout(500);
 }
 
+function parseMoneyInput(raw) {
+  return Number(String(raw || '').replace(/[^0-9.-]/g, ''));
+}
+
+async function assertPlatformImport(page, expected, label) {
+  await page.waitForURL('**/platform-fee-calculator.html');
+  await page.locator('#amtGross').waitFor({ state: 'visible' });
+  await page.waitForTimeout(350);
+  const value = await page.locator('#amtGross').inputValue();
+  assert.ok(Math.abs(parseMoneyInput(value) - expected) < 0.001, `${label}: platform import preserves ${expected}`);
+}
+
 async function checkHome(browser, name, viewport, isMobile = false) {
   const context = await browser.newContext({ viewport, isMobile });
   try {
@@ -87,33 +99,38 @@ async function checkHome(browser, name, viewport, isMobile = false) {
   }
 }
 
+async function verifyHourlyShell(page, name) {
+  const visibleH1 = page.locator('h1:visible');
+  assert.equal(await visibleH1.count(), 1, `${name}: exactly one visible H1`);
+  assert.equal(
+    (await visibleH1.innerText()).replace(/\s+/g, ' ').trim(),
+    'Freelance Hourly Rate Calculator'
+  );
+  await page.locator('#rate').waitFor({ state: 'visible' });
+  await page.locator('.hourly-seo-section').waitFor({ state: 'visible' });
+  await page.locator('[data-tool-share-action="native"]').waitFor({ state: 'visible' });
+  await page.locator('#btnCopy').waitFor({ state: 'visible' });
+
+  const positions = await page.evaluate(() => {
+    const main = document.querySelector('#mainCard').getBoundingClientRect();
+    const seo = document.querySelector('.hourly-seo-section').getBoundingClientRect();
+    return {
+      mainBottom: main.bottom + window.scrollY,
+      seoTop: seo.top + window.scrollY,
+    };
+  });
+  assert.ok(positions.seoTop >= positions.mainBottom - 2, `${name}: supporting guide stays below calculator`);
+  await noOverflow(page, name);
+  await assertUniqueIds(page, name);
+}
+
 async function checkHourly(browser, name, viewport, isMobile = false) {
   const context = await browser.newContext({ viewport, isMobile });
   try {
     const page = await preparePage(context);
     await page.goto(`${baseURL}/hourly-rate-calculator.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(350);
-
-    const visibleH1 = page.locator('h1:visible');
-    assert.equal(await visibleH1.count(), 1, `${name}: exactly one visible H1`);
-    assert.equal(
-      (await visibleH1.innerText()).replace(/\s+/g, ' ').trim(),
-      'Freelance Hourly Rate Calculator'
-    );
-    await page.locator('#rate').waitFor({ state: 'visible' });
-    await page.locator('.hourly-seo-section').waitFor({ state: 'visible' });
-    await page.locator('[data-tool-share-action="native"]').waitFor({ state: 'visible' });
-    await page.locator('#btnCopy').waitFor({ state: 'visible' });
-
-    const positions = await page.evaluate(() => {
-      const main = document.querySelector('#mainCard').getBoundingClientRect();
-      const seo = document.querySelector('.hourly-seo-section').getBoundingClientRect();
-      return {
-        mainBottom: main.bottom + window.scrollY,
-        seoTop: seo.top + window.scrollY,
-      };
-    });
-    assert.ok(positions.seoTop >= positions.mainBottom - 2, `${name}: supporting guide stays below calculator`);
+    await verifyHourlyShell(page, name);
 
     await setInputs(page, {
       rate: '50.01',
@@ -123,15 +140,22 @@ async function checkHourly(browser, name, viewport, isMobile = false) {
       billable: '70',
     });
 
-    const forward = await page.evaluate(() => ({
-      gross: window.__gross,
-      payload: buildHourlyToolkitPayload(),
+    const forwardGross = await page.evaluate(() => ({
+      year: window.__gross && window.__gross.year,
+      month: window.__gross && window.__gross.month,
     }));
-    assert.ok(Math.abs(forward.gross.year - 67213.44) < 0.001, `${name}: forward yearly cents`);
-    assert.ok(Math.abs(forward.gross.month - 5601.12) < 0.001, `${name}: forward monthly cents`);
-    assert.equal(forward.payload.normalized.annualGross, 67213.44, `${name}: forward normalized annual cents`);
-    assert.equal(forward.payload.handoff.amount, 67213.44, `${name}: forward handoff cents`);
+    assert.ok(Math.abs(forwardGross.year - 67213.44) < 0.001, `${name}: forward yearly cents`);
+    assert.ok(Math.abs(forwardGross.month - 5601.12) < 0.001, `${name}: forward monthly cents`);
 
+    await Promise.all([
+      page.waitForURL('**/platform-fee-calculator.html'),
+      page.locator('#ctaBtn').click(),
+    ]);
+    await assertPlatformImport(page, 67213.44, `${name}: forward handoff`);
+
+    await page.goto(`${baseURL}/hourly-rate-calculator.html`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(350);
+    await verifyHourlyShell(page, `${name} reverse reload`);
     await page.locator('#tab2').click();
     await setInputs(page, {
       target: '80000',
@@ -141,22 +165,22 @@ async function checkHourly(browser, name, viewport, isMobile = false) {
       billableR: '70',
       billableRTxt: '70',
     });
+
     assert.equal((await page.locator('#revBlueRate').innerText()).trim(), '$59.53/hr', `${name}: reverse quoted rate`);
-    const reverse = await page.evaluate(() => ({
-      gross: window.__gross,
-      payload: buildHourlyToolkitPayload(),
-    }));
-    assert.equal(reverse.payload.normalized.hourlyGross, 59.53, `${name}: reverse quoted cents in payload`);
-    assert.equal(reverse.payload.normalized.annualGross, 80008.32, `${name}: reverse annual gross from quoted rate`);
-    assert.equal(reverse.payload.handoff.amount, 80008.32, `${name}: reverse handoff cents`);
+    const reverseGross = await page.evaluate(() => window.__gross && window.__gross.year);
+    assert.ok(Math.abs(reverseGross - 80008.32) < 0.001, `${name}: reverse annual gross from rounded quote`);
 
     const beforeDark = await page.evaluate(() => document.body.classList.contains('dark'));
     await page.locator('#dmBtn').click();
     const afterDark = await page.evaluate(() => document.body.classList.contains('dark'));
     assert.notEqual(afterDark, beforeDark, `${name}: dark/light toggle works`);
 
-    await noOverflow(page, name);
-    await assertUniqueIds(page, name);
+    await Promise.all([
+      page.waitForURL('**/platform-fee-calculator.html'),
+      page.locator('#ctaBtn').click(),
+    ]);
+    await assertPlatformImport(page, 80008.32, `${name}: reverse handoff`);
+
     console.log(`PASS ${name}`);
   } finally {
     await context.close();
