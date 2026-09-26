@@ -6,6 +6,7 @@ on:
       - feat/seo-growth-v1
     paths:
       - .github/workflows/seo-task6-green.yml
+      - .github/tmp/seo-task6-browser.js
 
 permissions:
   contents: write
