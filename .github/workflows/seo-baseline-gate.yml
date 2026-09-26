@@ -1,0 +1,25 @@
+name: SEO Baseline Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verified main baseline
+        uses: actions/checkout@v4
+        with:
+          ref: d029b291463dab0541c30c94ab01276e74536e64
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Budget regression
+        run: node tests/budget-planner-regression.test.js
+      - name: Tax regression
+        run: node tests/tax-estimator-regression.test.js
+      - name: Android download page release regression
+        run: node tests/android-download-page-release.test.js
