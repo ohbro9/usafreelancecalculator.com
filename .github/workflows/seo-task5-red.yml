@@ -1,0 +1,38 @@
+name: SEO Task 5 RED Gate
+on:
+  push:
+    branches: [feat/seo-growth-v1]
+permissions:
+  contents: write
+jobs:
+  task5-red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply Task 5 failing SEO assertions
+        run: python3 .github/tmp/seo-task5-red.py
+      - name: Confirm Task 5 RED and protected Tax baseline
+        shell: bash
+        run: |
+          set +e
+          node tests/seo-structure-regression.test.js 2>&1 | tee /tmp/task5-red.log
+          seo_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$seo_status" -eq 0 ]; then
+            echo "Expected Task 5 SEO test to fail before implementation"
+            exit 1
+          fi
+          grep -Eq 'platform (title|h1|supporting|description)' /tmp/task5-red.log
+          grep -Eq 'tax (title|h1|supporting|description)' /tmp/task5-red.log
+          node tests/tax-estimator-regression.test.js
+      - name: Commit permanent Task 5 SEO assertions
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/seo-structure-regression.test.js
+          git commit -m "test: pin platform and tax SEO trust requirements"
+          git push origin HEAD:feat/seo-growth-v1
