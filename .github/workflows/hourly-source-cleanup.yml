@@ -1,0 +1,113 @@
+name: Hourly Source Cleanup Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+    paths:
+      - .github/workflows/hourly-source-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/seo-growth-v1
+          fetch-depth: 0
+
+      - name: Confirm branch isolation
+        run: |
+          git fetch origin main
+          echo "BRANCH_HEAD=$(git rev-parse HEAD)"
+          echo "MAIN=$(git rev-parse origin/main)"
+          test "$(git rev-parse origin/main)" = "d029b291463dab0541c30c94ab01276e74536e64"
+
+      - name: RED - add cleanup regression and prove it fails for the legacy source
+        run: |
+          python3 .github/tmp/hourly-source-cleanup.py red
+          set +e
+          node tests/seo-structure-regression.test.js >/tmp/hourly-cleanup-red.log 2>&1
+          code=$?
+          set -e
+          cat /tmp/hourly-cleanup-red.log
+          test "$code" -ne 0
+          grep -q "hourly source excludes hidden legacy home shell" /tmp/hourly-cleanup-red.log
+          echo "PASS expected RED: hidden legacy Hourly source is caught"
+          git checkout -- tests/seo-structure-regression.test.js
+
+      - name: GREEN - apply minimal source cleanup
+        run: |
+          python3 .github/tmp/hourly-source-cleanup.py apply
+          git diff --check -- hourly-rate-calculator.html tests/seo-structure-regression.test.js
+          echo "Working product/test diff:"
+          git diff --stat -- hourly-rate-calculator.html tests/seo-structure-regression.test.js
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "hourly-rate-calculator.html tests/seo-structure-regression.test.js "
+
+      - name: Prove Hourly runtime JS is still identical to main
+        run: |
+          python3 - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+          def runtime_scripts(text):
+              out=[]
+              for m in re.finditer(r'<script\b([^>]*)>([\s\S]*?)</script>', text, re.I):
+                  attrs=m.group(1)
+                  if re.search(r'\bsrc\s*=',attrs,re.I):
+                      continue
+                  if re.search(r'type\s*=\s*["\']application/ld\+json["\']',attrs,re.I):
+                      continue
+                  out.append(m.group(2).strip())
+              return out
+          before=subprocess.check_output(['git','show','origin/main:hourly-rate-calculator.html'],text=True)
+          after=Path('hourly-rate-calculator.html').read_text()
+          if runtime_scripts(before) != runtime_scripts(after):
+              raise SystemExit('Hourly runtime inline JS changed')
+          print('PASS Hourly runtime inline JS unchanged from main')
+          PY
+
+      - name: Run permanent deterministic regressions
+        run: |
+          node tests/seo-structure-regression.test.js
+          node tests/budget-planner-regression.test.js
+          node tests/tax-estimator-regression.test.js
+          node tests/android-download-page-release.test.js
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start temporary branch preview
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/hourly-cleanup-http.log 2>&1 &
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/hourly-rate-calculator.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/hourly-cleanup-http.log
+          exit 1
+
+      - name: Run Hourly desktop and mobile browser QA
+        env:
+          BASE_URL: http://127.0.0.1:4173
+        run: node .github/tmp/hourly-source-cleanup-browser.js
+
+      - name: Re-run Platform precision/caret protection
+        env:
+          PFC_BASE_URL: http://127.0.0.1:4173
+        run: node tests/platform-fee-caret.playwright.js
+
+      - name: Commit verified permanent cleanup only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hourly-rate-calculator.html tests/seo-structure-regression.test.js
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "hourly-rate-calculator.html tests/seo-structure-regression.test.js "
+          git commit -m "chore: remove hidden hourly legacy shell"
+          git push origin HEAD:feat/seo-growth-v1
+          echo "PRODUCT_COMMIT=$(git rev-parse HEAD)"
