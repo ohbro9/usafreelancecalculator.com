@@ -1,0 +1,97 @@
+name: SEO Task 6 Green Gate
+
+on:
+  push:
+    branches:
+      - feat/seo-growth-v1
+    paths:
+      - .github/workflows/seo-task6-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/seo-growth-v1
+          fetch-depth: 0
+
+      - name: Apply Task 6 product patch
+        run: python3 .github/tmp/seo-task6-apply.py
+
+      - name: Verify intended scope and protect Income calculation JS
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          changed = subprocess.check_output(['git','diff','--name-only'], text=True).splitlines()
+          expected = {'income-goal-planner.html','app/index.html','sitemap.xml','404.html','budget-planner.html'}
+          if set(changed) != expected:
+              raise SystemExit(f'Unexpected Task 6 product scope: {changed}')
+          old_income = subprocess.check_output(['git','show','HEAD:income-goal-planner.html'], text=True)
+          new_income = Path('income-goal-planner.html').read_text()
+          marker = '  <script>\n    (() => {'
+          if marker not in old_income or marker not in new_income:
+              raise SystemExit('Income calculation script marker missing')
+          if old_income.split(marker,1)[1] != new_income.split(marker,1)[1]:
+              raise SystemExit('Income calculation/export JS changed unexpectedly')
+          print('PASS Task 6 intended files only; Income calculation/export JS byte-identical')
+          PY
+          git diff --check
+
+      - name: Run permanent SEO and protected deterministic regressions
+        run: |
+          node tests/seo-structure-regression.test.js
+          node tests/budget-planner-regression.test.js
+          node tests/tax-estimator-regression.test.js
+          node tests/android-download-page-release.test.js
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local site
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/task6-http.log 2>&1 &
+          echo $! >/tmp/task6-http.pid
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/income-goal-planner.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/task6-http.log
+          exit 1
+
+      - name: Run Task 6 desktop and mobile browser QA
+        env:
+          BASE_URL: http://127.0.0.1:4173
+        run: node .github/tmp/seo-task6-browser.js
+
+      - name: Final product diff audit
+        run: |
+          git diff --check
+          echo 'Changed files:'
+          git diff --name-only
+          echo 'Diff stat:'
+          git diff --stat
+          python3 - <<'PY'
+          import subprocess
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          expected = {'income-goal-planner.html','app/index.html','sitemap.xml','404.html','budget-planner.html'}
+          if changed != expected:
+              raise SystemExit(f'Unexpected final Task 6 diff: {sorted(changed)}')
+          print('PASS final Task 6 product diff scope')
+          PY
+
+      - name: Commit verified Task 6 product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add income-goal-planner.html app/index.html sitemap.xml 404.html budget-planner.html
+          git commit -m "feat: finish income and technical SEO"
+          git push origin HEAD:feat/seo-growth-v1
+          git rev-parse HEAD
