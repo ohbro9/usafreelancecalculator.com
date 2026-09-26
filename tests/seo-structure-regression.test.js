@@ -35,7 +35,7 @@ function parseAttrs(tag) {
 function metaContent(html, name) {
   for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
     const attrs = parseAttrs(match[0]);
-    if ((attrs.name || '').toLowerCase() === name.toLowerCase()) return (attrs.content || '').trim();
+    if ((attrs.name || '').toLowerCase() === name.toLowerCase()) return normalizeText(attrs.content || '');
   }
   return '';
 }
@@ -377,7 +377,7 @@ check('income links to related calculators', () => {
 function propertyMetaContent(html, property) {
   for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
     const attrs = parseAttrs(match[0]);
-    if ((attrs.property || '').toLowerCase() === property.toLowerCase()) return (attrs.content || '').trim();
+    if ((attrs.property || '').toLowerCase() === property.toLowerCase()) return normalizeText(attrs.content || '');
   }
   return '';
 }
