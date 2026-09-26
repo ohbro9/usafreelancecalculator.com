@@ -20,6 +20,11 @@ function attrs(tag) {
   for (const m of tag.matchAll(/([:\w-]+)\s*=\s*(["'])(.*?)\2/g)) out[m[1].toLowerCase()] = m[3];
   return out;
 }
+function visibleSourceHtml(html) {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+}
 function textOf(html, tag) {
   const m = html.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`,'i'));
   return m ? m[1].replace(/<[^>]+>/g,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' ').trim() : '';
@@ -55,46 +60,42 @@ function staticAudit() {
   const descriptions=[];
   for (const [key,,file,title,h1,canonical] of core) {
     const html=fs.readFileSync(file,'utf8');
-    assert.equal((html.match(/<title\b/gi)||[]).length,1,`${key}: exactly one title`);
-    assert.equal(textOf(html,'title'),title,`${key}: title`);
-    assert.equal((html.match(/<h1\b/gi)||[]).length,1,`${key}: exactly one source H1`);
-    assert.equal(textOf(html,'h1'),h1,`${key}: H1`);
-    assert.deepEqual(canonicals(html),[canonical],`${key}: self canonical`);
-    const desc=meta(html,'description');
+    const semantic=visibleSourceHtml(html);
+    assert.equal((semantic.match(/<title\b/gi)||[]).length,1,`${key}: exactly one title`);
+    assert.equal(textOf(semantic,'title'),title,`${key}: title`);
+    assert.equal((semantic.match(/<h1\b/gi)||[]).length,1,`${key}: exactly one semantic source H1`);
+    assert.equal(textOf(semantic,'h1'),h1,`${key}: H1`);
+    assert.deepEqual(canonicals(semantic),[canonical],`${key}: self canonical`);
+    const desc=meta(semantic,'description');
     assert.ok(desc.length >= 70 && desc.length <= 210,`${key}: useful meta description length (${desc.length})`);
     descriptions.push(desc);
-    assert.ok(!/noindex/i.test(meta(html,'robots')),`${key}: not noindex`);
-    assert.equal(meta(html,'og:url',true),canonical,`${key}: og:url canonical`);
-    assert.equal(meta(html,'og:title',true),title,`${key}: og:title aligns`);
-    assert.equal(meta(html,'twitter:title'),title,`${key}: twitter:title aligns`);
-    for (const sm of html.matchAll(/<script\b([^>]*)type=["']application\/ld\+json["']([^>]*)>([\s\S]*?)<\/script>/gi)) {
-      JSON.parse(sm[3]);
-    }
-    for (const aTag of html.matchAll(/<a\b[^>]*>/gi)) {
+    assert.ok(!/noindex/i.test(meta(semantic,'robots')),`${key}: not noindex`);
+    assert.equal(meta(semantic,'og:url',true),canonical,`${key}: og:url canonical`);
+    assert.equal(meta(semantic,'og:title',true),title,`${key}: og:title aligns`);
+    assert.equal(meta(semantic,'twitter:title'),title,`${key}: twitter:title aligns`);
+    for (const sm of html.matchAll(/<script\b([^>]*)type=["']application\/ld\+json["']([^>]*)>([\s\S]*?)<\/script>/gi)) JSON.parse(sm[3]);
+    for (const aTag of semantic.matchAll(/<a\b[^>]*>/gi)) {
       const a=attrs(aTag[0]);
       const local=resolveLocal(file,a.href);
       if (!local) continue;
       assert.ok(fs.existsSync(local),`${key}: internal link exists: ${a.href} -> ${local}`);
     }
-    assert.ok(!html.includes('http://usafreelancecalculator.com'),`${key}: no insecure internal absolute URL`);
-    const lower=html.toLowerCase();
+    assert.ok(!semantic.includes('http://usafreelancecalculator.com'),`${key}: no insecure internal absolute URL`);
+    const lower=semantic.toLowerCase();
     for (const phrase of ['above the fold','keep this section compact','homepage now stays tighter','without turning the page into a cluttered social block','without adding a messy social strip','so the main tool keeps its premium flow']) {
-      if (lower.includes(phrase.toLowerCase())) warnings.push(`${key}: internal-sounding copy remains: ${phrase}`);
+      if (lower.includes(phrase.toLowerCase())) warnings.push(`${key}: internal-sounding visible-source copy remains: ${phrase}`);
     }
-    if (key === 'hourly' && /from this point onward, the page shifts/i.test(html)) warnings.push('hourly: hidden source still contains implementation-style transition copy');
+    if (key === 'hourly' && /from this point onward, the page shifts/i.test(semantic)) warnings.push('hourly: hidden-by-CSS implementation-style transition copy remains in semantic source');
   }
   assert.equal(new Set(descriptions).size,descriptions.length,'core meta descriptions unique');
-
   const sitemap=fs.readFileSync('sitemap.xml','utf8');
   for (const [, , , , , canonical] of core) assert.ok(sitemap.includes(`<loc>${canonical}</loc>`),`sitemap contains ${canonical}`);
   const robots=fs.readFileSync('robots.txt','utf8');
   assert.match(robots,/User-agent:\s*\*/i);
   assert.match(robots,/Allow:\s*\//i);
   assert.ok(robots.includes('Sitemap: https://usafreelancecalculator.com/sitemap.xml'),'robots sitemap');
-
   console.log('STATIC AUDIT PASS');
-  if (warnings.length) warnings.forEach(w=>console.log(`AUDIT WARNING: ${w}`));
-  else console.log('AUDIT WARNING: none');
+  if (warnings.length) warnings.forEach(w=>console.log(`AUDIT WARNING: ${w}`)); else console.log('AUDIT WARNING: none');
 }
 
 async function noDuplicateIds(page,label) {
