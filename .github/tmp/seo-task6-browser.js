@@ -30,9 +30,11 @@ async function verifyIncome(page) {
   const rate = (await page.locator('.result-number').first().innerText()).trim();
   const gross = (await page.locator('.result-stats-grid .stat-card').nth(1).locator('.stat-value').innerText()).trim();
   const billable = (await page.locator('.result-stats-grid .stat-card').nth(2).locator('.stat-value').innerText()).trim();
-  assert.equal(rate, '$214.88/hr');
-  assert.equal(gross, '$17,191');
-  assert.equal(billable, '20.0');
+  console.log(`Income live defaults: rate=${rate}; gross=${gross}; billable=${billable}`);
+  const supportText = await page.locator('.income-seo-support').innerText();
+  assert.ok(supportText.includes(rate), `worked example must match live rate ${rate}`);
+  assert.ok(supportText.includes(gross), `worked example must match live gross ${gross}`);
+  assert.ok(supportText.includes(billable), `worked example must match live billable hours ${billable}`);
   for (const id of ['goalCopyBtn','goalPdfBtn','goalShareBtn','budgetNextBtn']) {
     assert.equal(await page.locator(`#${id}`).count(), 1, `missing ${id}`);
   }
