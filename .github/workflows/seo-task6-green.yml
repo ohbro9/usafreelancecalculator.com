@@ -22,7 +22,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply Task 6 product patch
-        run: python3 .github/tmp/seo-task6-apply.py
+        run: |
+          python3 .github/tmp/seo-task6-apply.py
+          python3 .github/tmp/seo-task6-live-example-fix.py
 
       - name: Verify intended scope and protect Income calculation JS
         run: |
