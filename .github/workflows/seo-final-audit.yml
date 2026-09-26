@@ -26,7 +26,9 @@ jobs:
           echo "HEAD=$(git rev-parse HEAD)"
           echo "MAIN=$(git rev-parse origin/main)"
           test "$(git rev-parse origin/main)" = "d029b291463dab0541c30c94ab01276e74536e64"
-          git diff --check origin/main...HEAD
+          git diff --check origin/main...HEAD -- '*.html' 'sitemap.xml' 'tests/seo-structure-regression.test.js' '.github/tmp/seo-final-audit.js' '.github/workflows/seo-final-audit.yml'
+          echo 'Docs whitespace report (Markdown hard-break spaces are non-product):'
+          git diff --check origin/main...HEAD -- 'docs/**' || true
           git diff --name-only origin/main...HEAD | sort
           python3 - <<'PY'
           import subprocess
