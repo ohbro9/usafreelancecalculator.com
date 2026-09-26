@@ -126,6 +126,43 @@ check('home and hourly H1 are distinct', () => {
   assert.notEqual(tagText(pages.get('home').html, 'h1'), tagText(pages.get('hourly').html, 'h1'));
 });
 
+const platformHtml = pages.get('platform').html;
+check('platform removes stale universal Upwork claim', () => {
+  assert.ok(
+    !platformHtml.toLowerCase().includes('upwork now charges a flat 10% fee on all marketplace contracts'),
+    'platform page must not present Upwork as a universal flat 10% fee'
+  );
+});
+check('platform labels quick rates as illustrative presets', () => {
+  assert.match(platformHtml, /preset rates are illustrative starting points/i);
+});
+check('platform directs users to their actual account or contract fee', () => {
+  assert.match(platformHtml, /actual account or contract fee may differ/i);
+  assert.match(platformHtml, /use the fee shown in your account/i);
+  assert.match(platformHtml, /Custom/i);
+});
+check('platform shows review date', () => {
+  assert.match(platformHtml, /Last reviewed:\s*(?:<[^>]+>\s*)*September 26, 2026/i);
+});
+check('platform links official Upwork source', () => {
+  assert.ok(platformHtml.includes('https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee'));
+});
+check('platform links official Fiverr source', () => {
+  assert.ok(platformHtml.includes('https://help.fiverr.com/hc/en-us/articles/9234443621137-Your-earnings-page'));
+});
+check('platform links official Freelancer.com source', () => {
+  assert.ok(platformHtml.includes('https://www.freelancer.com/feesandcharges'));
+});
+check('platform links official Toptal source', () => {
+  assert.ok(platformHtml.includes('https://www.toptal.com/freelance-jobs/faq'));
+});
+check('platform links official Guru source', () => {
+  assert.ok(platformHtml.includes('https://www.guru.com/help/freelancer/about-guru-freelancer/fees/job-fee'));
+});
+check('platform links official PeoplePerHour source', () => {
+  assert.ok(platformHtml.includes('https://support.peopleperhour.com/hc/en-us/articles/205218337-Freelancer-commission-fees'));
+});
+
 const appHtml = read('app/index.html');
 check('app canonical', () => assert.deepEqual(canonicalHrefs(appHtml), [`${SITE}/app/`]));
 check('app title', () => {
