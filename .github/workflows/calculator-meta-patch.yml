@@ -1,0 +1,116 @@
+name: Calculator meta patch
+
+on:
+  push:
+    branches:
+      - chore/calculator-meta-descriptions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: RED - prove target metadata is not present yet
+        shell: bash
+        run: |
+          set +e
+          python3 - <<'PY'
+          from pathlib import Path
+
+          expected = {
+              "hourly-rate-calculator.html": "Calculate what hourly rate to charge—or work backward from your income goal. Include billable hours, time off, expenses and taxes. No signup. Free PDF/PNG.",
+              "platform-fee-calculator.html": "See what you keep after Upwork, Fiverr or custom fees — or enter your target payout to calculate what to charge. Free, no signup. Export as PDF or PNG.",
+          }
+
+          for path, description in expected.items():
+              text = Path(path).read_text(encoding="utf-8")
+              assert f'<meta name="description" content="{description}"' in text, f"{path}: desired description is still missing"
+          PY
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "RED check unexpectedly passed; aborting."
+            exit 1
+          fi
+          echo "RED confirmed: desired metadata was absent before the patch."
+
+      - name: Apply exact meta-description replacements
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "hourly-rate-calculator.html": (
+                  "Use a freelance hourly rate calculator to estimate what to charge from billable hours, working weeks, time off, expenses, taxes, and income goals.",
+                  "Calculate what hourly rate to charge—or work backward from your income goal. Include billable hours, time off, expenses and taxes. No signup. Free PDF/PNG.",
+              ),
+              "platform-fee-calculator.html": (
+                  "Compare Upwork, Fiverr and custom platform fees. See what you keep before tax or reverse-calculate what to charge for your target payout. Free, no signup.",
+                  "See what you keep after Upwork, Fiverr or custom fees — or enter your target payout to calculate what to charge. Free, no signup. Export as PDF or PNG.",
+              ),
+          }
+
+          for path, (old, new) in replacements.items():
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              old_attr = f'<meta name="description" content="{old}"'
+              if text.count(old_attr) != 1:
+                  raise SystemExit(f"{path}: expected old description exactly once, found {text.count(old_attr)}")
+              text = text.replace(old_attr, f'<meta name="description" content="{new}"', 1)
+              file.write_text(text, encoding="utf-8")
+          PY
+
+      - name: GREEN - verify exact metadata and unchanged titles
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          checks = {
+              "hourly-rate-calculator.html": {
+                  "description": "Calculate what hourly rate to charge—or work backward from your income goal. Include billable hours, time off, expenses and taxes. No signup. Free PDF/PNG.",
+                  "title": "<title>Freelance Hourly Rate Calculator | Calculate What to Charge</title>",
+              },
+              "platform-fee-calculator.html": {
+                  "description": "See what you keep after Upwork, Fiverr or custom fees — or enter your target payout to calculate what to charge. Free, no signup. Export as PDF or PNG.",
+                  "title": "<title>Freelance Platform Fee Calculator: Upwork &amp; Fiverr</title>",
+              },
+          }
+
+          for path, values in checks.items():
+              text = Path(path).read_text(encoding="utf-8")
+              desc = f'<meta name="description" content="{values["description"]}"'
+              assert text.count(desc) == 1, f"{path}: exact new description missing or duplicated"
+              assert values["title"] in text, f"{path}: title changed unexpectedly"
+          print("GREEN confirmed: both exact descriptions are present and both titles are unchanged.")
+          PY
+
+      - name: Validate diff and commit
+        shell: bash
+        run: |
+          git diff --check
+          echo "HTML diff before commit:"
+          git diff -- hourly-rate-calculator.html platform-fee-calculator.html
+          rm .github/workflows/calculator-meta-patch.yml
+          git add -A
+          printf 'Staged files:\n'
+          git diff --cached --name-only
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              ".github/workflows/calculator-meta-patch.yml",
+              "hourly-rate-calculator.html",
+              "platform-fee-calculator.html",
+          }
+          staged = set(subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).splitlines())
+          assert staged == expected, f"Unexpected staged files: {sorted(staged)}"
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Improve calculator meta descriptions"
+          git push
