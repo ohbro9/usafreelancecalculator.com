@@ -1,0 +1,53 @@
+name: Budget meta description patch
+
+on:
+  push:
+    branches:
+      - chore/budget-meta-description
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Update only the Budget Planner meta description
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("budget-planner.html")
+          text = path.read_text(encoding="utf-8")
+          old = '<meta name="description" content="Plan irregular freelance income with a free budget calculator for tax reserves, business and personal expenses, savings, and cash runway."/>'
+          new = '<meta name="description" content="Plan irregular freelance income with live calculations — no signup required. Track expenses and tax reserves, then download your report free as PDF or PNG."/>'
+
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one old meta description, found {count}")
+
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Remove temporary workflow and verify diff
+        shell: bash
+        run: |
+          rm .github/workflows/budget-meta-patch.yml
+          git add -A
+          git diff --cached --check
+          git diff --cached -- budget-planner.html
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git diff --cached --name-only | grep -Fxq 'budget-planner.html'
+          git diff --cached --name-only | grep -Fxq '.github/workflows/budget-meta-patch.yml'
+
+      - name: Commit target change
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "seo: improve budget planner meta description"
+          git push
