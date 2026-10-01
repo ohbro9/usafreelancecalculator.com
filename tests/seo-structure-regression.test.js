@@ -76,7 +76,7 @@ const pageSpecs = [
     key: 'platform',
     path: 'platform-fee-calculator.html',
     canonical: `${SITE}/platform-fee-calculator.html`,
-    title: 'Freelance Platform Fee Calculator | See What You Keep',
+    title: 'Freelance Platform Fee Calculator: Upwork & Fiverr',
     h1: 'Freelance Platform Fee Calculator',
   },
   {
