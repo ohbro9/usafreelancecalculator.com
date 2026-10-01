@@ -1515,6 +1515,12 @@
         .hourly-seo-faq summary{cursor:pointer;color:var(--text);font-weight:800}
         .hourly-seo-faq details p{margin-top:6px}
         .hourly-seo-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+        .hourly-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+        .hourly-guide-link{display:block;padding:15px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);color:var(--text);text-decoration:none}
+        .hourly-guide-link h3{margin:0;font-size:16px;line-height:1.35;text-decoration:underline;text-underline-offset:3px}
+        .hourly-guide-link p{margin-top:6px;font-size:13px}
+        .hourly-guide-link:hover{border-color:var(--accent2)}
+        .hourly-guide-link:focus-visible{outline:2px solid var(--text);outline-offset:3px}
         .hourly-seo-links a{
             display:inline-flex;
             align-items:center;
@@ -1531,6 +1537,7 @@
         @media(max-width:760px){
             .hourly-seo-intro-card,.hourly-seo-shell{padding:18px}
             .hourly-seo-grid{grid-template-columns:1fr}
+            .hourly-guide-grid{grid-template-columns:1fr}
             .hourly-seo-intro h1{font-size:34px}
         }
 
@@ -2046,6 +2053,25 @@ You can set goals per year, month, or week.">What's this?</button>
     <div class="hourly-seo-shell">
         <h2>How to Calculate Your Freelance Hourly Rate</h2>
         <p>Start with the time you can realistically sell to clients rather than treating every working hour as billable. The calculator above combines your hourly rate, hours per day, days per week, weeks per year, and billable percentage to estimate earning capacity. Reverse mode uses the same work-capacity inputs to estimate the rate needed for a chosen income target.</p>
+
+        <div class="hourly-seo-related" aria-labelledby="hourly-guides-title">
+            <h2 id="hourly-guides-title">Freelance Pricing Guides</h2>
+            <p>Explore rate planning, beginner pricing, and fixed project quotes alongside the calculator's forward and reverse modes.</p>
+            <div class="hourly-guide-grid">
+                <a class="hourly-guide-link" href="https://blog.usafreelancecalculator.com/2026/04/how-to-calculate-your-freelance-hourly-rate-us.html">
+                    <h3>How to Calculate Your Freelance Hourly Rate in the US</h3>
+                    <p>Understand the income goal, costs, tax reserve, and billable hours behind a pricing baseline.</p>
+                </a>
+                <a class="hourly-guide-link" href="https://blog.usafreelancecalculator.com/2026/04/how-much-should-a-beginner-freelancer-charge-2026.html">
+                    <h3>How Much Should a Beginner Freelancer Charge in 2026?</h3>
+                    <p>Compare the rate your business needs with a practical starting offer for your market.</p>
+                </a>
+                <a class="hourly-guide-link" href="https://blog.usafreelancecalculator.com/2026/04/hourly-rate-vs-project-pricing-for-freelancers.html">
+                    <h3>Hourly Rate vs Project Pricing for Freelancers</h3>
+                    <p>Choose a quote structure using your hourly baseline, estimated project time, and defined scope.</p>
+                </a>
+            </div>
+        </div>
 
         <div class="hourly-seo-grid">
             <article class="hourly-seo-card">
