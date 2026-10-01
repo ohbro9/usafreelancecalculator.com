@@ -1444,6 +1444,13 @@
         }
 
         /* UTILITY */
+        .home-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+        .home-guide-link{display:block;padding:18px;border-radius:18px;background:var(--surface-3);border:1px solid var(--line-soft);color:var(--text);text-decoration:none}
+        .home-guide-link:hover{border-color:var(--accent2)}
+        .home-guide-link:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+        .home-guide-link .home-trust-title{text-decoration:underline;text-underline-offset:3px}
+        @media(max-width:640px){.home-guide-grid{grid-template-columns:1fr}}
+
         .mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-14{margin-top:14px}
         .mb-0{margin-bottom:0}.mb-4{margin-bottom:4px}.mb-10{margin-bottom:10px}
 
@@ -2201,6 +2208,32 @@ You can set goals per year, month, or week.">What's this?</button>
         </div>
     </div>
 </div>
+
+<section class="site-home" aria-labelledby="freelance-guides-title">
+    <div class="home-trust-card">
+        <div class="home-section-head">
+            <div>
+                <div class="eyebrow">Practical Planning</div>
+                <h2 class="title" id="freelance-guides-title" style="margin-top:4px;">Freelance Guides</h2>
+            </div>
+            <p class="home-section-copy">Learn how to turn your calculator results into a budget, a tax-payment plan, or a revenue goal.</p>
+        </div>
+        <div class="home-guide-grid">
+            <a class="home-guide-link" href="https://blog.usafreelancecalculator.com/2026/09/how-to-budget-irregular-income-freelancer.html">
+                <h3 class="home-trust-title">Budget on an Irregular Income</h3>
+                <p class="home-trust-copy">Plan for quieter months and separate expenses, tax reserves, and savings.</p>
+            </a>
+            <a class="home-guide-link" href="https://blog.usafreelancecalculator.com/2026/09/how-to-do-quarterly-taxes-freelancer.html">
+                <h3 class="home-trust-title">Quarterly Taxes for Freelancers</h3>
+                <p class="home-trust-copy">Understand when estimated payments may be needed and how to plan for them.</p>
+            </a>
+            <a class="home-guide-link" href="https://blog.usafreelancecalculator.com/2026/09/how-to-set-freelance-revenue-goal.html">
+                <h3 class="home-trust-title">Set a Freelance Revenue Goal</h3>
+                <p class="home-trust-copy">Work backward from take-home needs to revenue targets and billable capacity.</p>
+            </a>
+        </div>
+    </div>
+</section>
 
 <footer class="site-footer">
     <div class="site-footer-inner">
