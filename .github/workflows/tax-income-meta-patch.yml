@@ -48,8 +48,8 @@ jobs:
           rm .github/workflows/tax-income-meta-patch.yml
           git add tax-estimator.html income-goal-planner.html .github/workflows/tax-income-meta-patch.yml
           git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "income-goal-planner.html tax-estimator.html "
-          test "$(git diff --cached --numstat | wc -l)" -eq 2
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/tax-income-meta-patch.yml income-goal-planner.html tax-estimator.html "
+          test "$(git diff --cached --numstat | wc -l)" -eq 3
           git diff --cached -- tax-estimator.html income-goal-planner.html
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
