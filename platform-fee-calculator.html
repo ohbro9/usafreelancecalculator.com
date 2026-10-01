@@ -2108,6 +2108,14 @@
   .pfc-seo-example{font-variant-numeric:tabular-nums;}
   .pfc-seo-source-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .pfc-seo-source-list a{display:inline-flex;min-height:34px;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid var(--pfc-line);background:var(--pfc-panel);font-size:11px;text-decoration:none;}
+  .pfc-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+  .pfc-seo-card .pfc-guide-link{display:block;padding:15px;border:1px solid var(--pfc-line);border-radius:16px;background:var(--pfc-panel);color:var(--pfc-text);text-decoration:none;}
+  .pfc-guide-link h3{margin:0;font-size:16px;text-decoration:underline;text-underline-offset:3px;}
+  .pfc-guide-link .pfc-seo-kicker{color:var(--pfc-text);}
+  .pfc-guide-link p{margin:6px 0 0;font-weight:400;color:var(--pfc-text);}
+  .pfc-guide-link:hover{border-color:var(--pfc-blue2);}
+  .pfc-guide-link:focus-visible{outline:2px solid var(--pfc-text);outline-offset:3px;}
+  @media(max-width:720px){.pfc-guide-grid{grid-template-columns:1fr;}}
   @media(max-width:720px){.pfc-seo-guide{margin-top:16px}.pfc-seo-grid{grid-template-columns:1fr}.pfc-seo-card{padding:15px;border-radius:18px;}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2903,6 +2911,22 @@
           <li>Add only the processor, payout, or tax assumptions that actually apply to your situation.</li>
           <li>Review the live result, comparison, and next-tool handoff before using the number in a quote or plan.</li>
         </ol>
+      </article>
+
+      <article class="pfc-seo-card" aria-labelledby="platform-guides-title">
+        <h2 id="platform-guides-title">Platform Fee Guides</h2>
+        <div class="pfc-guide-grid">
+          <a class="pfc-guide-link" href="https://blog.usafreelancecalculator.com/2026/04/how-platform-fees-affect-your-real-freelance-earnings.html">
+            <div class="pfc-seo-kicker">Client Pays · Forward</div>
+            <h3>How Platform Fees Affect Your Real Freelance Earnings</h3>
+            <p>Start with a client payment and understand what remains after fees and other platform-related costs.</p>
+          </a>
+          <a class="pfc-guide-link" href="https://blog.usafreelancecalculator.com/2026/04/how-to-raise-your-rate-after-platform-fees.html">
+            <div class="pfc-seo-kicker">I Want to Keep · Reverse</div>
+            <h3>How to Raise Your Rate After Platform Fees</h3>
+            <p>Work backward from a before-tax keep target to a quote, then consider the client's budget and project scope.</p>
+          </a>
+        </div>
       </article>
 
       <div class="pfc-seo-grid">
