@@ -1,0 +1,57 @@
+name: Tax and Income meta patch
+
+on:
+  push:
+    branches:
+      - chore/tax-income-meta-descriptions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/tax-income-meta-descriptions
+          fetch-depth: 0
+      - name: Apply exact meta description replacements
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "tax-estimator.html": (
+                  '<meta name="description" content="Estimate 2026 freelance taxes including self-employment tax, federal tax, quarterly payments, and take-home pay for US freelancers."/>',
+                  '<meta name="description" content="Estimate 2026 freelance taxes, quarterly payments and take-home pay, including self-employment tax. Live results, no signup. Export free as PDF or PNG."/>'
+              ),
+              "income-goal-planner.html": (
+                  '<meta name="description" content="Turn your desired freelance take-home into the gross revenue, hourly rate, and billable hours you may need after taxes, fees, and business expenses." />',
+                  '<meta name="description" content="Work backward from your take-home goal to estimate the gross revenue, hourly rate and billable hours you may need. No signup. Free PDF/PNG export." />'
+              ),
+          }
+
+          for filename, (old, new) in replacements.items():
+              p = Path(filename)
+              text = p.read_text()
+              assert text.count(old) == 1, f"Expected old meta exactly once in {filename}, found {text.count(old)}"
+              assert new not in text, f"New meta already present in {filename}"
+              p.write_text(text.replace(old, new, 1))
+              assert p.read_text().count(new) == 1
+
+          assert len("Estimate 2026 freelance taxes, quarterly payments and take-home pay, including self-employment tax. Live results, no signup. Export free as PDF or PNG.") == 151
+          assert len("Work backward from your take-home goal to estimate the gross revenue, hourly rate and billable hours you may need. No signup. Free PDF/PNG export.") == 146
+          PY
+      - name: Verify scope and commit
+        run: |
+          rm .github/workflows/tax-income-meta-patch.yml
+          git add tax-estimator.html income-goal-planner.html .github/workflows/tax-income-meta-patch.yml
+          git diff --cached --check
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "income-goal-planner.html tax-estimator.html "
+          test "$(git diff --cached --numstat | wc -l)" -eq 2
+          git diff --cached -- tax-estimator.html income-goal-planner.html
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Improve Tax Estimator and Income Goal meta descriptions"
+          git push origin HEAD:chore/tax-income-meta-descriptions
