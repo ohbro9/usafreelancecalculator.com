@@ -1517,8 +1517,7 @@
             #panelFwd .field input.v{font-size:17px}
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <script src="assets/js/export-loader.js" defer></script>
   <script defer src="/assets/js/site-analytics.js"></script>
 </head>
 <body>
@@ -4007,23 +4006,33 @@ $('btnReset').addEventListener('click',function(){
     try{localStorage.removeItem('hrcSched')}catch(e){}
     syncLegacyTaxStateScaffold();
     if(__advOpen)setAdv(false);toast('Reset ✓','success');calc();persistScheduleData()});
+function prepareExport(callback, delay){
+  if(window.__exportPreparing){toast('Export is preparing...','error');return;}
+  window.__exportPreparing=true;
+  window.ensureUsafcExportLibraries().then(function(){
+    setTimeout(function(){window.__exportPreparing=false;callback();},delay);
+  }).catch(function(){
+    window.__exportPreparing=false;
+    toast('Could not load export tools. Please try again.','error');
+  });
+}
 $('btnBreakdown').addEventListener('click',function(){
   if(mode==='fwd'){
     if(!window.__fwdData||!window.__fwdData.rate){toast('Calculate first!','error');return;}
     if(window.__imgBusy){toast('Image generating...','error');return;}
-    toast('Generating image...','success');
-    setTimeout(generateFwdImage,120);
+    toast('Preparing image...','success');
+    prepareExport(generateFwdImage,120);
     return;
   }
   if(!window.__revData||!window.__revData.n2){toast('Calculate first!','error');return;}
   if(window.__imgBusy){toast('Image generating...','error');return;}
-  toast('Generating image...','success');
-  setTimeout(generateRevImage,120);
+  toast('Preparing image...','success');
+  prepareExport(generateRevImage,120);
 });
 $('btnPDF').addEventListener('click', function(){
   if(window.__pdfBusy){toast('PDF is already generating...','error');return;}
-  toast('Generating PDF...','success');
-  setTimeout(function(){ generatePDF(); }, 100);
+  toast('Preparing PDF...','success');
+  prepareExport(generatePDF,100);
 });
 
 
