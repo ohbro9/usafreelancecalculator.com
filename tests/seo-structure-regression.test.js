@@ -266,10 +266,14 @@ check('platform links official PeoplePerHour source', () => {
   assert.ok(platformHtml.includes('https://support.peopleperhour.com/hc/en-us/articles/205218337-Freelancer-commission-fees'));
 });
 
-check('platform description owns fee take-home intent', () => {
-  const description = metaContent(platformHtml, 'description');
-  assert.match(description, /platform\s+fee/i);
-  assert.match(description, /keep|take-home|client/i);
+check('platform description matches the approved P1 snippet exactly', () => {
+  const descriptionTags = Array.from(platformHtml.matchAll(/<meta\b[^>]*>/gi), ([tag]) => parseAttrs(tag))
+    .filter(attrs => (attrs.name || '').toLowerCase() === 'description');
+  assert.equal(descriptionTags.length, 1, 'platform page has exactly one SEO meta description');
+  assert.equal(
+    descriptionTags[0].content,
+    'Compare Upwork, Fiverr or custom fees. See what you keep before tax or work backward from a target payout. Free, no signup. PDF/PNG export.'
+  );
 });
 check('platform supporting heading: how it works', () => {
   assert.match(platformHtml, /<h2\b[^>]*>[^<]*How (?:the )?Freelance Platform Fee Calculator Works[^<]*<\/h2>/i);
