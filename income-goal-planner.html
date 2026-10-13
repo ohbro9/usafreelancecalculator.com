@@ -2385,7 +2385,7 @@
 	              </div>
 
 	              <div class="field">
-	                <label class="field-label" for="otherIncomeAnnual">Other Annual Taxable Income</label>
+	                <label class="field-label" for="otherIncomeAnnual">Other Annual Income Before Deductions</label>
 	                <div class="input-shell">
 	                  <span class="input-prefix">$</span>
 	                  <input id="otherIncomeAnnual" type="text" inputmode="decimal" autocomplete="off" data-numfmt="money" value="0" />
@@ -2405,7 +2405,7 @@
 	            </div>
 
 	            <p class="helper-note tax-smart-summary">
-	              Smart 2026 uses filing-status brackets, the 2026 standard deduction, and your state/local planning %. Quick picks are planning shortcuts, not exact state tax law.
+	              Smart 2026 uses federal brackets and the basic standard deduction. QBI and tax credits are not included. State/local % applies to business profit; quick picks are planning assumptions.
 	            </p>
 
 	            <div class="preset-row tax-manual-row is-hidden">
@@ -2659,7 +2659,7 @@
 	              </div>
 
 	              <p class="helper-note se-smart-summary">
-	                Smart 2026 uses 92.35% net earnings, the 2026 Social Security wage base, and Additional Medicare thresholds by filing status.
+	                Smart 2026 applies ordinary SE tax at $400+ annual net earnings using the 92.35% factor. W-2 wages adjust SE caps only; include their taxable earnings in Other Annual Income too.
 	              </p>
 
 	              <div class="preset-row se-manual-row is-hidden">
@@ -2871,7 +2871,8 @@
               Gross rate needed to achieve $10,000/month take-home
             </p>
 
-            <div class="net-chip">≈ $149.77/hr net after tax</div>
+            <div class="net-chip">Take-home per billable hour updates with your plan.</div>
+            <p id="planningScopeNote" class="helper-note">Planning assumptions update with your estimate.</p>
 
             <div class="allocation-bar-wrap">
               <div class="allocation-bar">
@@ -3540,6 +3541,7 @@
         ui.resultNumber = document.querySelector('.result-number');
         ui.resultSubtext = document.querySelector('.result-subtext');
         ui.netChip = document.querySelector('.net-chip');
+        ui.planningScopeNote = document.getElementById('planningScopeNote');
         ui.allocations = [...document.querySelectorAll('.allocation-bar .allocation')];
         ui.resultStatValues = [...document.querySelectorAll('.card-result-hero .result-stats-grid .stat-value')];
 	        ui.cashflowRows = [...document.querySelectorAll('.card-cashflow .breakdown-table .row:not(.detail)')];
@@ -3764,8 +3766,10 @@
 
 	        ui.taxInfoBtn.addEventListener('click', () => {
 	          showInfoModal('Estimated Tax Rate Guide', [
-	            'Smart 2026 uses official 2026 federal brackets and standard deductions by filing status.',
-	            'Add your own state/local effective tax % for a fuller planning estimate, or switch to Manual % if you already know your combined rate.'
+	            getPlanningDisclosure(state.lastResult).dashboardNote,
+	            'Smart 2026 estimates federal income tax using official brackets and the basic standard deduction. It is a planning model, not an exact personal tax liability.',
+	            'Other annual income is entered before the basic standard deduction. Include taxable W-2 earnings here; the W-2 wages field separately adjusts SE tax caps.',
+	            'QBI, tax credits, itemized deductions and other special deductions are not modeled. State/local % applies to business profit. Switch to Manual % for your own effective rate.'
 	          ]);
 	        });
 	        ui.taxModeButtons.forEach((btn, i) => {
@@ -3824,12 +3828,13 @@
         ui.bufferModeButtons.forEach((btn, i) => {
           btn.addEventListener('click', () => {
             const nextMode = i === 0 ? 'percent' : 'amount';
+            if (nextMode === state.bufferMode) return;
             if (nextMode === 'amount') {
-              state.bufferAmount = Math.max(0, currentGoalMonthly() * (state.bufferPct / 100));
-              if (ui.bufferAmountInput) ui.bufferAmountInput.value = String(Math.round(state.bufferAmount));
+              state.bufferAmount = roundToolkitMoney(Math.max(0, currentGoalMonthly() * (state.bufferPct / 100)));
+              if (ui.bufferAmountInput) ui.bufferAmountInput.value = String(state.bufferAmount);
             } else if (currentGoalMonthly() > 0) {
-              state.bufferPct = (state.bufferAmount / currentGoalMonthly()) * 100;
-              if (ui.bufferInput) ui.bufferInput.value = String(Number(state.bufferPct.toFixed(1)));
+              state.bufferPct = Number(((state.bufferAmount / currentGoalMonthly()) * 100).toFixed(10));
+              if (ui.bufferInput) ui.bufferInput.value = String(state.bufferPct);
             }
             state.bufferMode = nextMode;
             setActive(ui.bufferModeButtons, i);
@@ -4373,7 +4378,7 @@
 	        return {
 	          monthlyExpenses: advancedEnabled ? Math.max(0, num(ui.expenseInput.value)) : 0,
 	          feesEnabled: advancedEnabled && state.feesEnabled,
-	          feePercent: advancedEnabled && state.feesEnabled ? clamp(totalFeePercentValue() / 100, 0, 0.99) : 0,
+	          feePercent: advancedEnabled && state.feesEnabled ? totalFeePercentValue() / 100 : 0,
 	          fixedFee: advancedEnabled && state.feesEnabled ? processorFixedFeeValue() : 0,
 	          avgTransactions: advancedEnabled && state.feesEnabled ? feeTransactionCountValue() : 0,
 	          feeMode: currentFeeMode(),
@@ -4665,6 +4670,7 @@
 	      }
 
 	      function goNextToBudget() {
+        recalcAll();
 	        const payload = buildBudgetToolkitPayload(state.lastResult);
 	        if (!payload) {
 	          showInfoModal('Budget Handoff Unavailable', [
@@ -4956,7 +4962,8 @@
       }
 
       function num(value) {
-        return parseFloat(String(value || '').replace(/,/g, '')) || 0;
+        const parsed = parseFloat(String(value || '').replace(/,/g, ''));
+        return Number.isFinite(parsed) ? parsed : 0;
       }
 
       function fmt(n, dec = 0) {
@@ -5603,7 +5610,9 @@
 
 	        if (seEnabled) {
 	          if (state.seTaxMode === 'smart') {
-	            const seBaseAnnual = Math.max(0, profitAnnual * SE_RULES_2026.netEarningsFactor);
+	            // Ordinary nonfarm Schedule SE: net earnings below $400 are not taxable.
+	            const netEarningsAnnual = Math.max(0, profitAnnual * SE_RULES_2026.netEarningsFactor);
+	            const seBaseAnnual = netEarningsAnnual >= 400 ? netEarningsAnnual : 0;
 	            const w2IncomeAnnual = Math.max(0, state.w2IncomeAnnual || 0);
 	            const remainingSsBase = Math.max(0, SE_RULES_2026.socialSecurityWageBase - Math.min(SE_RULES_2026.socialSecurityWageBase, w2IncomeAnnual));
 	            socialSecurityTaxAnnual = Math.min(seBaseAnnual, remainingSsBase) * SE_RULES_2026.socialSecurityRate;
@@ -5666,7 +5675,7 @@
 	          ? grossMonthly * inputs.feePercent
 	          : 0;
 	        const clientSideFeesMonthly = inputs.feesEnabled && inputs.feeMode === 'client'
-	          ? (grossMonthly * inputs.feePercent) + feeFixedMonthly
+	          ? ((grossMonthly * inputs.feePercent) + feeFixedMonthly) / (1 - inputs.feePercent)
 	          : 0;
 	        const payoutBaseMonthly = inputs.feesEnabled && inputs.withdrawalEnabled
 	          ? (inputs.feeMode === 'absorb'
@@ -5704,6 +5713,21 @@
 	      function solveMonthlyGross(inputs) {
 	        let low = 0;
 	        let high = Math.max(1000, inputs.ownerTargetMonthly + inputs.monthlyExpenses + 500);
+	        // Schedule SE starts abruptly at $400 annual net earnings. Check the
+	        // tax-free segment first so bisection cannot skip a cheaper valid plan.
+	        if (state.advancedEnabled && state.seTaxEnabled && state.seTaxMode === 'smart') {
+	          const feeRate = inputs.feesEnabled && inputs.feeMode === 'absorb' ? inputs.feePercent : 0;
+	          const fixedFees = inputs.feesEnabled && inputs.feeMode === 'absorb' ? inputs.fixedFee * inputs.avgTransactions : 0;
+	          const withdrawalRate = inputs.feesEnabled && inputs.withdrawalEnabled ? inputs.withdrawalPct : 0;
+	          const retention = (1 - feeRate) * (1 - withdrawalRate);
+	          if (retention > 0) {
+	            const thresholdProfitMonthly = (400 - 1e-9) / (SE_RULES_2026.netEarningsFactor * 12);
+	            const thresholdGross = (inputs.monthlyExpenses + thresholdProfitMonthly + fixedFees * (1 - withdrawalRate)) / retention;
+	            if (modelMonthlyGross(thresholdGross, inputs).takeHomeAfterTaxMonthly >= inputs.ownerTargetMonthly) {
+	              high = thresholdGross;
+	            }
+	          }
+	        }
 	        let highModel = modelMonthlyGross(high, inputs);
 
 	        while (highModel.takeHomeAfterTaxMonthly < inputs.ownerTargetMonthly && high < 1000000) {
@@ -5744,7 +5768,7 @@
         state.bufferPct = preset.bufferPct;
         state.bufferAmount = preset.incomeGoal * (preset.bufferPct / 100);
         if (ui.bufferInput) ui.bufferInput.value = String(state.bufferPct);
-        if (ui.bufferAmountInput) ui.bufferAmountInput.value = String(Math.round(state.bufferAmount));
+        if (ui.bufferAmountInput) ui.bufferAmountInput.value = String(state.bufferAmount);
 
         setModeCardActive(['beginner', 'growing', 'pro'].indexOf(key));
         setActive(ui.workPresetButtons, 0);
@@ -5775,7 +5799,7 @@
           : 0;
 	        const monthlyExpenses = advancedEnabled ? Math.max(0, num(ui.expenseInput.value)) : 0;
 	        const bufferPct = advancedEnabled ? (Math.max(0, state.bufferPct) / 100) : 0;
-	        const feePercent = advancedEnabled && state.feesEnabled ? clamp(totalFeePercentValue() / 100, 0, 0.99) : 0;
+	        const feePercent = advancedEnabled && state.feesEnabled ? totalFeePercentValue() / 100 : 0;
 	        const fixedFee = advancedEnabled && state.feesEnabled ? processorFixedFeeValue() : 0;
 	        const avgTransactions = advancedEnabled && state.feesEnabled ? feeTransactionCountValue() : 0;
 	        const feeMode = currentFeeMode();
@@ -5800,6 +5824,10 @@
 	        }
 	        if (state.taxMode === 'manual' && (manualIncomeTaxRate >= 1 || (manualIncomeTaxRate + manualSeRate) >= 1)) {
 	          warnings.push({ type: 'error', msg: 'Manual tax settings leave no take-home margin. Keep combined manual income tax and SE tax below 100%.' });
+	          return { error: true, warnings };
+	        }
+	        if (advancedEnabled && state.feesEnabled && feePercent >= 1) {
+	          warnings.push({ type: 'error', msg: 'Combined platform and processor fees must be below 100% to calculate a payment.' });
 	          return { error: true, warnings };
 	        }
 	        if (advancedEnabled && state.feesEnabled && feeTransactionCountValue() === 0 && fixedFee > 0) {
@@ -5849,7 +5877,8 @@
 	        const grossRequiredAnnual = solved.grossAnnual;
 	        const totalTaxMonthly = solved.tax.totalTaxAnnual / 12;
 	        const effectiveTaxPctOfGross = grossRequiredAnnual > 0 ? (solved.tax.totalTaxAnnual / grossRequiredAnnual) : 0;
-	        const ownerNetHourly = billableHoursMonth > 0 ? (solved.takeHomeAfterTaxMonthly / billableHoursMonth) : 0;
+	        // Personal take-home excludes the separately reserved safety/profit buffer.
+	        const ownerNetHourly = billableHoursMonth > 0 ? (goalMonthly / billableHoursMonth) : 0;
 
 	        return {
 	          error: false,
@@ -5879,6 +5908,8 @@
 	          takeHomeAfterTaxMonthly: solved.takeHomeAfterTaxMonthly,
 	          takeHomeAfterTaxAnnual: solved.takeHomeAfterTaxAnnual,
 	          ownerNetHourly,
+	          advancedEnabled,
+	          seTaxIncluded: advancedEnabled && state.seTaxEnabled,
 	          taxModeLabel: solved.tax.incomeTaxModeLabel,
 	          seModeLabel: solved.tax.seTaxModeLabel,
 	          smartSeEffectiveRate: solved.tax.smartSeEffectiveRate,
@@ -5934,7 +5965,8 @@
         if (!reqIncome || reqIncome <= 0) return null;
 
         const cf = PIPE_CF[state.confidence] || 1.0;
-        const avgVisibleValue = Math.max(1, num(ui.pipeModelInput.value));
+        const avgVisibleValue = num(ui.pipeModelInput.value);
+        if (!(avgVisibleValue > 0) || !(num(ui.pipeWorkingDaysInput.value) > 0)) return null;
         let avgProjectValue = avgVisibleValue;
         let avgRetainerValue = state.pipelineRetainerValue;
         let churnDecimal = state.pipelineRetainerChurnPct / 100;
@@ -5952,16 +5984,15 @@
           projectWeightPct = Math.max(5, Math.min(95, state.pipelineMixedSplit));
         }
 
-        let rawL2C = boundedPercentValue(ui.pipeLeadInput, 1);
-        let rawC2P = boundedPercentValue(ui.pipeCallInput, 1);
-        let rawP2W = boundedPercentValue(ui.pipeCloseInput, 1);
-        rawL2C = rawL2C <= 0 ? 0.1 : rawL2C;
-        rawC2P = rawC2P <= 0 ? 0.1 : rawC2P;
-        rawP2W = rawP2W <= 0 ? 0.1 : rawP2W;
+        const rawL2C = boundedPercentValue(ui.pipeLeadInput, 1);
+        const rawC2P = boundedPercentValue(ui.pipeCallInput, 1);
+        const rawP2W = boundedPercentValue(ui.pipeCloseInput, 1);
+        // A zero conversion cannot support a positive revenue target.
+        if (rawL2C <= 0 || rawC2P <= 0 || rawP2W <= 0) return null;
 
-        const pCall = clamp((rawL2C / 100) * cf, 0.001, 1);
-        const pProp = clamp((rawC2P / 100) * cf, 0.001, 1);
-        const pWin = clamp((rawP2W / 100) * cf, 0.001, 1);
+        const pCall = clamp((rawL2C / 100) * cf, 0, 1);
+        const pProp = clamp((rawC2P / 100) * cf, 0, 1);
+        const pWin = clamp((rawP2W / 100) * cf, 0, 1);
         const workingDaysMonth = Math.max(1, num(ui.pipeWorkingDaysInput.value));
 
         let revProj = 0;
@@ -6010,6 +6041,10 @@
       }
 
 	      function recalcAll() {
+	        if (state.recalcFrame) {
+	          window.cancelAnimationFrame(state.recalcFrame);
+	          state.recalcFrame = 0;
+	        }
 	        refreshFormattedMoneyInputs();
 	        normalizeBoundedPercentInputs();
 	        state.stateTaxRate = boundedPercentValue(ui.stateTaxInput, 1);
@@ -6179,11 +6214,33 @@
         }
       }
 
+      function getPlanningDisclosure(result) {
+        if (result && result.error) result = null;
+        const advanced = result ? result.advancedEnabled : !!state.advancedEnabled;
+        const seIncluded = result ? result.seTaxIncluded : (advanced && state.seTaxEnabled);
+        const smartIncomeTax = result ? result.taxModeLabel.startsWith('Smart') : state.taxMode === 'smart';
+        const scopeNote = !advanced
+          ? 'Basic estimate: self-employment tax, expenses, fees and buffer excluded.'
+          : (seIncluded
+              ? 'Advanced estimate: self-employment tax included.'
+              : 'Advanced estimate: self-employment tax excluded (switched off).');
+        const dashboardNote = !advanced
+          ? 'Basic estimate: self-employment tax, business expenses, payment fees and safety buffer excluded. Enable Advanced Options for a more complete freelance estimate.'
+          : scopeNote;
+        return {
+          scopeNote,
+          dashboardNote,
+          seLabel: seIncluded ? 'Included' : 'Excluded',
+          taxLimitNote: smartIncomeTax ? 'QBI and credits excluded.' : 'Manual income-tax planning percentage.'
+        };
+      }
+
       function renderResults(result) {
 	        if (!result || result.error) {
 	          ui.resultNumber.textContent = '—';
 	          ui.resultSubtext.textContent = 'Enter a valid target and schedule to generate your real billing rate.';
 	          ui.netChip.textContent = 'Set your target to calculate';
+	          ui.planningScopeNote.textContent = getPlanningDisclosure(null).dashboardNote;
 	          ui.resultStatValues.forEach(el => { el.textContent = '—'; });
 	          ui.cashflowValues.forEach(el => { el.textContent = '—'; });
 	          ui.cashflowTaxDetailValues.forEach(el => { el.textContent = '—'; });
@@ -6206,7 +6263,8 @@
 
 	        ui.resultNumber.textContent = fmtRate(result.requiredHourlyRate);
 	        ui.resultSubtext.textContent = `Gross rate needed to achieve ${fmtUSD(result.goalMonthly)}/month take-home`;
-	        ui.netChip.textContent = `≈ ${fmtRate(result.ownerNetHourly)} take-home after tax`;
+	        ui.netChip.textContent = `≈ ${fmtRate(result.ownerNetHourly)} take-home / billable hr`;
+        ui.planningScopeNote.textContent = getPlanningDisclosure(result).dashboardNote;
 
 	        const widths = [netPct, bufPct, expPct, taxPct, feePct];
 	        ui.allocations.forEach((el, i) => { el.style.width = widths[i].toFixed(1) + '%'; });
@@ -6296,8 +6354,8 @@
         ui.pipeGrossValue.textContent = pipe ? fmtUSD(pipe.reqIncome) : (state.targetSource === 'custom' && state.pipelineCustomGross ? fmtUSD(state.pipelineCustomGross) : '—');
 
         if (!pipe) {
-          ui.pipeBigMetric.textContent = 'Pipeline disabled';
-          ui.pipeResultNote.textContent = 'Enable pipeline planning and set a valid gross target to estimate your lead volume.';
+          ui.pipeBigMetric.textContent = state.advancedEnabled && state.pipeEnabled ? 'Pipeline needs input' : 'Pipeline disabled';
+          ui.pipeResultNote.textContent = 'Enable pipeline planning and enter a valid gross target, value, working days and conversions above 0%.';
           ui.pipeMiniStatValues.forEach(el => { el.textContent = '—'; });
           ui.pipeEpvLabel.textContent = 'Estimated Pipeline Value';
           ui.pipeEpvValue.textContent = '—';
@@ -6305,17 +6363,17 @@
           return;
         }
 
-        ui.pipeBigMetric.textContent = `${fmt(pipe.leadsNeeded, 0)} leads / month`;
-        ui.pipeResultNote.textContent = `Estimated pipeline needed to hit ${fmtUSD(pipe.reqIncome)} gross/month at ×${pipe.cf.toFixed(1)} confidence.`;
+        ui.pipeBigMetric.textContent = `${fmt(pipe.leadsNeeded, 1)} estimated leads / month`;
+        ui.pipeResultNote.textContent = `Expected pipeline at ${fmtUSD(pipe.reqIncome)} gross/month (×${pipe.cf.toFixed(1)} scenario). Outcomes are not guaranteed.`;
         ui.pipeMiniStatValues[0].textContent = fmt(pipe.dealsTotal, 1);
-        ui.pipeMiniStatValues[1].textContent = fmt(pipe.callsNeeded, 0);
+        ui.pipeMiniStatValues[1].textContent = fmt(pipe.callsNeeded, 1);
         ui.pipeMiniStatValues[2].textContent = fmt(pipe.proposalsNeeded, 1);
         ui.pipeMiniStatValues[3].textContent = fmt(pipe.leadsPerDay, 1);
         ui.pipeEpvLabel.textContent = 'Estimated Pipeline Value';
         ui.pipeEpvValue.textContent = pipe.epv > 0 ? fmtUSD(pipe.epv) : '—';
 
-        ui.pipeInsightValues[0].textContent = fmt(pipe.leadsNeeded, 0);
-        ui.pipeInsightValues[1].textContent = fmt(pipe.callsNeeded, 0);
+        ui.pipeInsightValues[0].textContent = fmt(pipe.leadsNeeded, 1);
+        ui.pipeInsightValues[1].textContent = fmt(pipe.callsNeeded, 1);
         ui.pipeInsightValues[2].textContent = fmt(pipe.proposalsNeeded, 1);
         ui.pipeInsightValues[3].textContent = fmt(pipe.dealsTotal, 1);
       }
@@ -6377,6 +6435,7 @@
       }
 
       function getPlannerExportGuard(actionLabel) {
+        recalcAll();
         const result = state.lastResult;
         if (result && !result.error) return null;
 
@@ -6395,6 +6454,7 @@
       }
 
 	      function copyPlan() {
+        recalcAll();
 	        const r = state.lastResult;
 	        if (!r || r.error) {
           const guard = getPlannerExportGuard('Copy Summary');
@@ -6406,7 +6466,9 @@
 	          '',
 	          `Goal: ${fmtUSD(r.goalMonthly)}/month take-home (${state.goalMode})`,
 	          `Required billing rate: ${fmtRate(r.requiredHourlyRate)}`,
-	          `Take-home after tax: ${fmtRate(r.ownerNetHourly)}`,
+          getPlanningDisclosure(r).scopeNote,
+          getPlanningDisclosure(r).taxLimitNote,
+	          `Take-home / billable hr: ${fmtRate(r.ownerNetHourly)}`,
 	          `Billable hours/week: ${fmt(r.billableHoursWeekPlan, 1)} hrs`,
 	          `Gross/month: ${fmtUSD(r.grossRequired)}`,
 	          `Gross/year: ${fmtUSD(r.grossRequiredAnnual)}`,
@@ -6422,7 +6484,7 @@
 	          lines.push(
 	            `Filing status: ${FEDERAL_TAX_2026[state.filingStatus].label}`,
 	            `State / local effective tax: ${fmt(state.stateTaxRate, 1)}%`,
-	            `Other annual taxable income: ${fmtUSD(state.otherIncomeAnnual)}`,
+	            `Other annual income before deductions: ${fmtUSD(state.otherIncomeAnnual)}`,
 	            `Smart tax year: ${TAX_YEAR}`
 	          );
 	        } else {
@@ -6458,7 +6520,7 @@
 	          lines.push('', 'Benchmarking', `Role: ${state.lastBench.roleData.label}`, `Status: ${state.lastBench.status}`, `Range: $${state.lastBench.lo}-$${state.lastBench.hi}${state.lastBench.isExpert ? '+' : ''}/hr`);
 	        }
         if (state.lastPipe) {
-          lines.push('', 'Pipeline', `Leads/month: ${fmt(state.lastPipe.leadsNeeded, 0)}`, `Calls/month: ${fmt(state.lastPipe.callsNeeded, 0)}`, `Proposals/month: ${fmt(state.lastPipe.proposalsNeeded, 1)}`, `Deals/month: ${fmt(state.lastPipe.dealsTotal, 1)}`);
+          lines.push('', 'Pipeline (monthly expectations)', `Leads/month: ${fmt(state.lastPipe.leadsNeeded, 1)}`, `Calls/month: ${fmt(state.lastPipe.callsNeeded, 1)}`, `Proposals/month: ${fmt(state.lastPipe.proposalsNeeded, 1)}`, `Deals/month: ${fmt(state.lastPipe.dealsTotal, 1)}`);
 	        }
 
 	        const text = lines.join('\n');
@@ -6519,6 +6581,7 @@
       }
 
       function buildPdfData() {
+        recalcAll();
         const result = state.lastResult;
         if (!result || result.error) return null;
 
@@ -6532,7 +6595,7 @@
         const monthlyModelLabel = state.calcMode === 'realistic' ? '4.33 Weeks/Month' : 'Average (Yearly ÷ 12)';
         const monthlyModelShort = state.calcMode === 'realistic' ? '4.33 Weeks/Month' : 'Average Month';
         const taxMethodShort = state.taxMode === 'smart'
-          ? `Smart ${TAX_YEAR}`
+          ? `Smart ${TAX_YEAR} income tax`
           : `Manual ${fmt(boundedPercentValue(ui.taxInput, 1), 1)}%`;
         const generatedOn = new Date().toLocaleDateString('en-US', {
           month: 'long',
@@ -6589,7 +6652,8 @@
           { label: 'Weeks/Year', value: fmt(weeksPerYear, 0) },
           { label: 'Monthly Model', value: monthlyModelShort },
           { label: 'Utilization', value: `${fmt(result.utilizationPct * 100, 0)}%` },
-          { label: 'Tax', value: taxMethodShort }
+          { label: 'Income Tax', value: taxMethodShort },
+          { label: 'SE Tax', value: getPlanningDisclosure(result).seLabel }
         ];
 
         if (state.taxMode === 'smart') {
@@ -6613,7 +6677,7 @@
           }
           if (state.advancedEnabled && state.seTaxEnabled) {
             assumptions.push({
-              label: 'SE Tax',
+              label: 'SE Method',
               value: state.seTaxMode === 'smart' ? `Smart ${TAX_YEAR}` : `${fmt(boundedPercentValue(ui.seInput, 1), 1)}%`
             });
           }
@@ -6696,7 +6760,7 @@
                 label: 'State / local effective tax',
                 value: state.taxMode === 'smart' ? `${fmt(state.stateTaxRate, 1)}%` : 'Manual mode'
               },
-              { label: 'Other annual income', value: fmtUSD(state.otherIncomeAnnual) },
+              { label: 'Other income before deductions', value: fmtUSD(state.otherIncomeAnnual) },
               {
                 label: state.taxMode === 'smart' ? 'Federal monthly tax' : 'Manual income tax',
                 value: fmtUSD(state.taxMode === 'smart' ? result.federalTaxMonthly : result.incomeTaxMonthly)
@@ -6760,14 +6824,15 @@
             ? '4.33 Weeks/Month uses your weekly schedule to build the monthly planning view.'
             : 'Average Month spreads yearly billable hours evenly across 12 months.',
           'Billable hours depend on your selected utilization and weekly work plan.',
+          'Hourly take-home excludes the safety/profit buffer. Monthly and annual amounts are rounded independently.',
           state.taxMode === 'smart'
-            ? `Smart ${TAX_YEAR} tax combines federal${state.stateTaxRate > 0 ? ', state/local,' : ''}${state.advancedEnabled && state.seTaxEnabled ? ' and self-employment' : ''} tax assumptions.`
+            ? `Smart ${TAX_YEAR} tax combines federal${state.stateTaxRate > 0 ? ', state/local,' : ''}${state.advancedEnabled && state.seTaxEnabled ? ' and self-employment' : ''} tax assumptions. QBI and credits are not included; state/local % applies to business profit.`
             : 'Manual tax mode uses your own effective income-tax percentage instead of bracket-based federal estimates.',
           result.feesEnabled
-            ? 'Platform, processor, and withdrawal fees are folded into the gross target based on your selected fee mode.'
+            ? 'Absorbed fees reduce business profit. Client-paid fees are grossed up on the full payment and shown separately from your revenue target.'
             : 'Platform and payment fees are currently off in this export.',
           bench ? 'Benchmark ranges are directional planning references, not guarantees of achievable pricing.' : null,
-          pipe ? 'Pipeline planning is scenario-based and depends on your actual lead quality and conversions.' : null
+          pipe ? 'Pipeline figures are fractional monthly expectations, not minimum counts or guaranteed outcomes.' : null
         ].filter(Boolean);
 
         return {
@@ -6781,7 +6846,8 @@
           hero: {
             rate: fmtRate(result.requiredHourlyRate),
             sub: `Gross rate needed to achieve ${fmtUSD(result.goalMonthly)}/month take-home.`,
-            netChip: `≈ ${fmtRate(result.ownerNetHourly)} net after tax`,
+            netChip: `≈ ${fmtRate(result.ownerNetHourly)} take-home / billable hr`,
+            scopeNote: getPlanningDisclosure(result).scopeNote,
             goal: `${fmtUSD(result.goalMonthly)}/mo`,
             grossMonth: fmtUSD(result.grossRequired),
             grossYear: fmtUSD(result.grossRequiredAnnual),
@@ -6813,10 +6879,10 @@
             markerLeft: benchMarker
           } : null,
           pipeline: pipe ? {
-            bigMetric: `${fmt(pipe.leadsNeeded, 0)} leads / month`,
-            note: `Estimated pipeline needed to hit ${fmtUSD(pipe.reqIncome)} gross/month at ×${fmt(pipe.cf, 1)} confidence.`,
+            bigMetric: `${fmt(pipe.leadsNeeded, 1)} estimated leads / month`,
+            note: `Expected pipeline at ${fmtUSD(pipe.reqIncome)} gross/month (×${fmt(pipe.cf, 1)} scenario). Outcomes are not guaranteed.`,
             metrics: [
-              { label: 'Discovery calls', value: fmt(pipe.callsNeeded, 0) },
+              { label: 'Discovery calls', value: fmt(pipe.callsNeeded, 1) },
               { label: 'Proposals', value: fmt(pipe.proposalsNeeded, 1) },
               { label: 'Closed deals', value: fmt(pipe.dealsTotal, 1) },
               { label: 'Leads / day', value: fmt(pipe.leadsPerDay, 1) }
@@ -7620,6 +7686,7 @@
                     <div class="hero-number">${escapeHtml(data.hero.rate)}</div>
                     <div class="hero-sub">${escapeHtml(data.hero.sub)}</div>
                     <div class="hero-chip">${escapeHtml(data.hero.netChip)}</div>
+                    <p style="font-size:12px;line-height:1.5;color:#d2def0;margin:10px 0 0;">${escapeHtml(data.hero.scopeNote)}</p>
                     <div class="hero-brand-line">Premium by usafreelancecalculator.com</div>
                   </div>
 
@@ -7720,7 +7787,7 @@
 
               <section class="footer-strip">
                 <div class="footer-note-text">
-                  Estimates are planning guidance only. Rates, taxes, benchmark ranges, and pipeline assumptions may not match actual client outcomes.
+                  Estimates are planning guidance only.${data.header.taxMethod.startsWith('Smart') ? ' QBI and tax credits are excluded.' : ''} Rates and pipeline assumptions may not match actual outcomes.
                 </div>
                 <div class="footer-brand">usafreelancecalculator.com</div>
               </section>
@@ -7755,10 +7822,12 @@
       }
 
       function buildShareCardData() {
+        recalcAll();
         const result = state.lastResult;
         if (!result || result.error) return null;
 
-        const includeBits = ['taxes'];
+        const includeBits = ['income tax'];
+        if (result.seTaxIncluded) includeBits.push('self-employment tax');
         if (state.advancedEnabled && result.feesEnabled) includeBits.push('fees');
         if (state.advancedEnabled && result.monthlyExpenses > 0) includeBits.push('expenses');
         if (state.advancedEnabled && result.bufferAmount > 0) includeBits.push('buffer');
@@ -7770,12 +7839,12 @@
           rateAmount: fmt(result.requiredHourlyRate, 2),
           rateSuffix: '/hr',
           support: `Built to reach your take-home goal after ${joinHumanList(includeBits)}.`,
-          netAfterTax: `Approx. net after tax: ${fmtRate(result.ownerNetHourly)}`,
+          netAfterTax: `Take-home / billable hr: ${fmtRate(result.ownerNetHourly)}`,
           goalMonthly: fmtUSD(result.goalMonthly),
           grossMonth: fmtUSD(result.grossRequired),
           grossYear: fmtUSD(result.grossRequiredAnnual),
           billableWeek: fmt(result.billableHoursWeekPlan, 1),
-          supportStrip: `Includes ${joinHumanList(includeBits)}.`,
+          supportStrip: `${getPlanningDisclosure(result).scopeNote} ${getPlanningDisclosure(result).taxLimitNote}`,
           footerLeft: 'usafreelancecalculator.com',
           footerRight: 'Income goal snapshot'
         };
