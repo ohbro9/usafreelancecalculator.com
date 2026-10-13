@@ -97,3 +97,14 @@ test('pipeline full conversion and all scenarios preserve fractional expected de
  const a=fixture();a.ui.pipeLeadInput.value='100';a.ui.pipeCallInput.value='100';a.ui.pipeCloseInput.value='100';near(a.calculatePipeline(a.calculate()).leadsNeeded,2.5403984023608883);
  a.ui.pipeLeadInput.value='25';a.ui.pipeCallInput.value='70';a.ui.pipeCloseInput.value='40';for(const [confidence,want] of [['realistic',36.29140574801269],['conservative',70.88165185158726],['aggressive',21.001970919]]){a.state.confidence=confidence;near(a.calculatePipeline(a.calculate()).leadsNeeded,want,1e-6);}
 });
+test('Basic Smart income-tax model omits all advanced costs and ordinary SE tax',()=>{
+ const a=fixture();a.state.advancedEnabled=false;const r=a.calculate();
+ near(r.grossRequired,5685.555555555556);near(r.requiredHourlyRate,50.76388888888889);
+ near(r.federalTaxMonthly,514.988888888889);near(r.stateLocalTaxMonthly,170.5666666666667);
+ near(r.seTaxMonthly,0);near(r.bufferAmount,0);near(r.monthlyExpenses,0);near(r.absorbedFeeTotal,0);near(r.ownerNetHourly,44.642857142857146);
+});
+test('mode switching preserves advanced settings and financial models',()=>{
+ const a=fixture(), advanced=a.calculate();a.state.advancedEnabled=false;const basic=a.calculate();a.state.advancedEnabled=true;near(a.calculate().grossRequired,advanced.grossRequired);
+ a.state.advancedEnabled=false;near(a.calculate().grossRequired,basic.grossRequired);
+ assert.equal(a.state.seTaxEnabled,true);assert.equal(a.state.feesEnabled,true);assert.equal(a.state.bufferPct,15);
+});

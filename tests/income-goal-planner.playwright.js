@@ -58,14 +58,50 @@ test('Budget handoff refreshes after same-frame goal input',async p=>{
 test('same-frame invalid goal prevents PDF and PNG snapshots',async p=>{
  const d=await p.evaluate(()=>{const a=window.__igp;a.ui.incomeInput.value='0';a.ui.incomeInput.dispatchEvent(new Event('input',{bubbles:true}));return [a.buildPdfData(),a.buildShareCardData()];});assert.deepEqual(d,[null,null]);
 });
+
+for(const [name,advanced,seIncluded] of [['Basic Smart 2026',false,false],['Advanced SE on',true,true],['Advanced SE switched off',true,false]]) {
+ test(name+' has consistent explicit tax scope on dashboard, PDF and PNG',async p=>{
+  const d=await p.evaluate(({advanced,seIncluded})=>{const a=window.__igp;a.state.advancedEnabled=advanced;a.state.seTaxEnabled=advanced?seIncluded:true;const pdf=a.buildPdfData(),png=a.buildShareCardData();return {r:a.state.lastResult,pdf,png,dashboard:document.getElementById('planningScopeNote')?.textContent};},{advanced,seIncluded});
+  const want=seIncluded?/self-employment tax included/i:/self-employment tax.*excluded/i;
+  assert.match(d.dashboard||'',want);assert.match(d.pdf.hero.scopeNote||'',want);assert.match(d.png.supportStrip,want);
+  assert.match(d.pdf.header.taxMethod,/income tax/i);assert.match(d.png.supportStrip,/QBI and credits excluded/);
+  const assumption=d.pdf.assumptions.find(x=>x.label==='SE Tax');assert.equal(assumption.value,seIncluded?'Included':'Excluded');
+  if(!advanced){assert.match(d.dashboard,/Advanced Options/);assert.match(d.pdf.hero.scopeNote,/expenses.*fees.*buffer/i);near(d.r.grossRequired,5685.555555555556);near(d.r.seTaxMonthly,0);assert.equal(d.pdf.advancedPage,null);}
+ });
+}
+test('same-frame Basic/Advanced switches refresh results and scope in exports',async p=>{
+ const d=await p.evaluate(()=>{const a=window.__igp;a.ui.advanceToggleTrigger.click();const basic=a.buildPdfData();a.ui.advanceToggleTrigger.click();const advanced=a.buildPdfData();return {basic,advanced};});
+ assert.equal(d.basic.hero.rate,'$50.76/hr');assert.match(d.basic.hero.scopeNote||'',/self-employment tax.*excluded/i);
+ assert.equal(d.advanced.hero.rate,'$79.39/hr');assert.match(d.advanced.hero.scopeNote||'',/self-employment tax included/i);
+});
+test('copy after immediate input reflects active mode and fresh goal',async p=>{
+ const text=await p.evaluate(()=>{let captured='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:(t)=>{captured=t;return Promise.resolve();}}});const a=window.__igp;a.ui.advanceToggleTrigger.click();a.ui.incomeInput.value='6000';a.ui.incomeInput.dispatchEvent(new Event('input',{bubbles:true}));a.copyPlan();return captured;});
+ assert.match(text,/Goal: \$6,000\/month/);assert.match(text,/self-employment tax.*excluded/i);assert.match(text,/QBI and credits excluded/i);
+});
+test('Manual income-tax mode preserves explicit Basic/Advanced SE scope',async p=>{
+ for(const [advanced,seIncluded] of [[false,false],[true,true],[true,false]]){
+  const d=await p.evaluate(({advanced,seIncluded})=>{const a=window.__igp;a.state.taxMode='manual';a.state.advancedEnabled=advanced;a.state.seTaxEnabled=advanced?seIncluded:true;const pdf=a.buildPdfData(),png=a.buildShareCardData();return {pdf,png,dashboard:document.getElementById('planningScopeNote').textContent};},{advanced,seIncluded});
+  const want=seIncluded?/self-employment tax included/i:/self-employment tax.*excluded/i;
+  assert.match(d.dashboard,want);assert.match(d.pdf.hero.scopeNote,want);assert.match(d.png.supportStrip,want);
+  assert.match(d.pdf.header.taxMethod,/Manual/);assert.match(d.png.supportStrip,/Manual income-tax planning percentage/);assert.doesNotMatch(d.png.supportStrip,/QBI and credits excluded/);
+ }
+});
+test('tax guide remains available when current inputs are invalid',async p=>{
+ const errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.evaluate(()=>{const a=window.__igp;a.state.advancedEnabled=false;a.ui.incomeInput.value='0';a.recalcAll();a.ui.taxInfoBtn.click();});
+ assert.match(await p.locator('.premium-modal-body').innerText(),/Basic estimate/);assert.deepEqual(errors,[]);
+});
 test('real premium PDF and PNG downloads render on a mobile viewport',async p=>{
  if(!process.env.IGP_ARTIFACT_DIR)return false;
  const out=process.env.IGP_ARTIFACT_DIR;fs.mkdirSync(out,{recursive:true});
  if(process.env.IGP_EXPORT_LIB_DIR){await p.addScriptTag({path:path.join(process.env.IGP_EXPORT_LIB_DIR,'html2canvas.js')});await p.addScriptTag({path:path.join(process.env.IGP_EXPORT_LIB_DIR,'jspdf.js')});}
  await p.waitForFunction(()=>typeof window.html2canvas==='function'&&!!window.jspdf?.jsPDF);
+ await p.locator('.card-result-hero').screenshot({path:path.join(out,'Premium-dashboard-mobile.png')});
  const pdfWait=p.waitForEvent('download');await p.evaluate(()=>window.__igp.downloadPDF());await (await pdfWait).saveAs(path.join(out,'Income-Goal-Planner-verified-premium.pdf'));
  const pngWait=p.waitForEvent('download');await p.evaluate(()=>window.__igp.downloadShareCard());await (await pngWait).saveAs(path.join(out,'Income-Goal-Planner-verified-share.png'));
  await p.evaluate(()=>{window.__igp.state.advancedEnabled=false;window.__igp.recalcAll();});
+ await p.locator('.card-result-hero').screenshot({path:path.join(out,'Basic-dashboard-mobile.png')});
+ const basicPNG=p.waitForEvent('download');await p.evaluate(()=>window.__igp.downloadShareCard());await (await basicPNG).saveAs(path.join(out,'Income-Goal-Planner-basic-share.png'));
  const count=await p.evaluate(()=>window.__igp.buildPdfData().advancedPage);assert.equal(count,null);
  const simpleWait=p.waitForEvent('download');await p.evaluate(()=>window.__igp.downloadPDF());await (await simpleWait).saveAs(path.join(out,'Income-Goal-Planner-verified-basic.pdf'));
 });
@@ -82,7 +118,8 @@ test('real premium PDF and PNG downloads render on a mobile viewport',async p=>{
    baseURL='http://127.0.0.1:'+server.address().port;
  }
  const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
- let failures=0;
- for(const t of tests){const p=await browser.newPage({viewport:{width:390,height:844},timezoneId:'Asia/Kolkata'});await p.route('**/income-goal-planner.html',r=>r.fulfill({body:instrumented,contentType:'text/html'}));if(process.env.IGP_EXPORT_LIB_DIR)await p.route('https://cdnjs.cloudflare.com/**',r=>r.abort());await p.goto(baseURL+'/income-goal-planner.html');await p.waitForFunction(()=>!!window.__igp?.state.lastResult);await scenario(p);try{const result=await t.run(p);console.log((result===false?'SKIP ':'PASS ')+t.name);}catch(e){failures++;console.log('FAIL '+t.name+': '+e.message);}await p.close();}
+ let failures=0,passed=0,skipped=0;
+ for(const t of tests){const p=await browser.newPage({viewport:{width:390,height:844},timezoneId:'Asia/Kolkata'});await p.route('**/income-goal-planner.html',r=>r.fulfill({body:instrumented,contentType:'text/html'}));if(process.env.IGP_EXPORT_LIB_DIR)await p.route('https://cdnjs.cloudflare.com/**',r=>r.abort());await p.goto(baseURL+'/income-goal-planner.html');await p.waitForFunction(()=>!!window.__igp?.state.lastResult);await scenario(p);try{const result=await t.run(p);if(result===false)skipped++;else passed++;console.log((result===false?'SKIP ':'PASS ')+t.name);}catch(e){failures++;console.log('FAIL '+t.name+': '+e.message);}await p.close();}
+ console.log(`RESULT passed=${passed} failed=${failures} skipped=${skipped}`);
  await browser.close();if(server)await new Promise(resolve=>server.close(resolve));if(failures)process.exitCode=1;
 })();

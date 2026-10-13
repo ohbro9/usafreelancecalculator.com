@@ -2872,6 +2872,7 @@
             </p>
 
             <div class="net-chip">Take-home per billable hour updates with your plan.</div>
+            <p id="planningScopeNote" class="helper-note">Planning assumptions update with your estimate.</p>
 
             <div class="allocation-bar-wrap">
               <div class="allocation-bar">
@@ -3540,6 +3541,7 @@
         ui.resultNumber = document.querySelector('.result-number');
         ui.resultSubtext = document.querySelector('.result-subtext');
         ui.netChip = document.querySelector('.net-chip');
+        ui.planningScopeNote = document.getElementById('planningScopeNote');
         ui.allocations = [...document.querySelectorAll('.allocation-bar .allocation')];
         ui.resultStatValues = [...document.querySelectorAll('.card-result-hero .result-stats-grid .stat-value')];
 	        ui.cashflowRows = [...document.querySelectorAll('.card-cashflow .breakdown-table .row:not(.detail)')];
@@ -3764,7 +3766,8 @@
 
 	        ui.taxInfoBtn.addEventListener('click', () => {
 	          showInfoModal('Estimated Tax Rate Guide', [
-	            'Smart 2026 uses official 2026 federal brackets and standard deductions by filing status.',
+	            getPlanningDisclosure(state.lastResult).dashboardNote,
+	            'Smart 2026 estimates federal income tax using official brackets and the basic standard deduction. It is a planning model, not an exact personal tax liability.',
 	            'Other annual income is entered before the basic standard deduction. Include taxable W-2 earnings here; the W-2 wages field separately adjusts SE tax caps.',
 	            'QBI, tax credits, itemized deductions and other special deductions are not modeled. State/local % applies to business profit. Switch to Manual % for your own effective rate.'
 	          ]);
@@ -5905,6 +5908,8 @@
 	          takeHomeAfterTaxMonthly: solved.takeHomeAfterTaxMonthly,
 	          takeHomeAfterTaxAnnual: solved.takeHomeAfterTaxAnnual,
 	          ownerNetHourly,
+	          advancedEnabled,
+	          seTaxIncluded: advancedEnabled && state.seTaxEnabled,
 	          taxModeLabel: solved.tax.incomeTaxModeLabel,
 	          seModeLabel: solved.tax.seTaxModeLabel,
 	          smartSeEffectiveRate: solved.tax.smartSeEffectiveRate,
@@ -6209,11 +6214,33 @@
         }
       }
 
+      function getPlanningDisclosure(result) {
+        if (result && result.error) result = null;
+        const advanced = result ? result.advancedEnabled : !!state.advancedEnabled;
+        const seIncluded = result ? result.seTaxIncluded : (advanced && state.seTaxEnabled);
+        const smartIncomeTax = result ? result.taxModeLabel.startsWith('Smart') : state.taxMode === 'smart';
+        const scopeNote = !advanced
+          ? 'Basic estimate: self-employment tax, expenses, fees and buffer excluded.'
+          : (seIncluded
+              ? 'Advanced estimate: self-employment tax included.'
+              : 'Advanced estimate: self-employment tax excluded (switched off).');
+        const dashboardNote = !advanced
+          ? 'Basic estimate: self-employment tax, business expenses, payment fees and safety buffer excluded. Enable Advanced Options for a more complete freelance estimate.'
+          : scopeNote;
+        return {
+          scopeNote,
+          dashboardNote,
+          seLabel: seIncluded ? 'Included' : 'Excluded',
+          taxLimitNote: smartIncomeTax ? 'QBI and credits excluded.' : 'Manual income-tax planning percentage.'
+        };
+      }
+
       function renderResults(result) {
 	        if (!result || result.error) {
 	          ui.resultNumber.textContent = '—';
 	          ui.resultSubtext.textContent = 'Enter a valid target and schedule to generate your real billing rate.';
 	          ui.netChip.textContent = 'Set your target to calculate';
+	          ui.planningScopeNote.textContent = getPlanningDisclosure(null).dashboardNote;
 	          ui.resultStatValues.forEach(el => { el.textContent = '—'; });
 	          ui.cashflowValues.forEach(el => { el.textContent = '—'; });
 	          ui.cashflowTaxDetailValues.forEach(el => { el.textContent = '—'; });
@@ -6237,6 +6264,7 @@
 	        ui.resultNumber.textContent = fmtRate(result.requiredHourlyRate);
 	        ui.resultSubtext.textContent = `Gross rate needed to achieve ${fmtUSD(result.goalMonthly)}/month take-home`;
 	        ui.netChip.textContent = `≈ ${fmtRate(result.ownerNetHourly)} take-home / billable hr`;
+        ui.planningScopeNote.textContent = getPlanningDisclosure(result).dashboardNote;
 
 	        const widths = [netPct, bufPct, expPct, taxPct, feePct];
 	        ui.allocations.forEach((el, i) => { el.style.width = widths[i].toFixed(1) + '%'; });
@@ -6438,6 +6466,8 @@
 	          '',
 	          `Goal: ${fmtUSD(r.goalMonthly)}/month take-home (${state.goalMode})`,
 	          `Required billing rate: ${fmtRate(r.requiredHourlyRate)}`,
+          getPlanningDisclosure(r).scopeNote,
+          getPlanningDisclosure(r).taxLimitNote,
 	          `Take-home / billable hr: ${fmtRate(r.ownerNetHourly)}`,
 	          `Billable hours/week: ${fmt(r.billableHoursWeekPlan, 1)} hrs`,
 	          `Gross/month: ${fmtUSD(r.grossRequired)}`,
@@ -6565,7 +6595,7 @@
         const monthlyModelLabel = state.calcMode === 'realistic' ? '4.33 Weeks/Month' : 'Average (Yearly ÷ 12)';
         const monthlyModelShort = state.calcMode === 'realistic' ? '4.33 Weeks/Month' : 'Average Month';
         const taxMethodShort = state.taxMode === 'smart'
-          ? `Smart ${TAX_YEAR}`
+          ? `Smart ${TAX_YEAR} income tax`
           : `Manual ${fmt(boundedPercentValue(ui.taxInput, 1), 1)}%`;
         const generatedOn = new Date().toLocaleDateString('en-US', {
           month: 'long',
@@ -6622,7 +6652,8 @@
           { label: 'Weeks/Year', value: fmt(weeksPerYear, 0) },
           { label: 'Monthly Model', value: monthlyModelShort },
           { label: 'Utilization', value: `${fmt(result.utilizationPct * 100, 0)}%` },
-          { label: 'Tax', value: taxMethodShort }
+          { label: 'Income Tax', value: taxMethodShort },
+          { label: 'SE Tax', value: getPlanningDisclosure(result).seLabel }
         ];
 
         if (state.taxMode === 'smart') {
@@ -6646,7 +6677,7 @@
           }
           if (state.advancedEnabled && state.seTaxEnabled) {
             assumptions.push({
-              label: 'SE Tax',
+              label: 'SE Method',
               value: state.seTaxMode === 'smart' ? `Smart ${TAX_YEAR}` : `${fmt(boundedPercentValue(ui.seInput, 1), 1)}%`
             });
           }
@@ -6816,6 +6847,7 @@
             rate: fmtRate(result.requiredHourlyRate),
             sub: `Gross rate needed to achieve ${fmtUSD(result.goalMonthly)}/month take-home.`,
             netChip: `≈ ${fmtRate(result.ownerNetHourly)} take-home / billable hr`,
+            scopeNote: getPlanningDisclosure(result).scopeNote,
             goal: `${fmtUSD(result.goalMonthly)}/mo`,
             grossMonth: fmtUSD(result.grossRequired),
             grossYear: fmtUSD(result.grossRequiredAnnual),
@@ -7654,6 +7686,7 @@
                     <div class="hero-number">${escapeHtml(data.hero.rate)}</div>
                     <div class="hero-sub">${escapeHtml(data.hero.sub)}</div>
                     <div class="hero-chip">${escapeHtml(data.hero.netChip)}</div>
+                    <p style="font-size:12px;line-height:1.5;color:#d2def0;margin:10px 0 0;">${escapeHtml(data.hero.scopeNote)}</p>
                     <div class="hero-brand-line">Premium by usafreelancecalculator.com</div>
                   </div>
 
@@ -7793,7 +7826,8 @@
         const result = state.lastResult;
         if (!result || result.error) return null;
 
-        const includeBits = ['taxes'];
+        const includeBits = ['income tax'];
+        if (result.seTaxIncluded) includeBits.push('self-employment tax');
         if (state.advancedEnabled && result.feesEnabled) includeBits.push('fees');
         if (state.advancedEnabled && result.monthlyExpenses > 0) includeBits.push('expenses');
         if (state.advancedEnabled && result.bufferAmount > 0) includeBits.push('buffer');
@@ -7810,7 +7844,7 @@
           grossMonth: fmtUSD(result.grossRequired),
           grossYear: fmtUSD(result.grossRequiredAnnual),
           billableWeek: fmt(result.billableHoursWeekPlan, 1),
-          supportStrip: `Includes ${joinHumanList(includeBits)}.${state.taxMode === 'smart' ? ' QBI and credits excluded.' : ''}`,
+          supportStrip: `${getPlanningDisclosure(result).scopeNote} ${getPlanningDisclosure(result).taxLimitNote}`,
           footerLeft: 'usafreelancecalculator.com',
           footerRight: 'Income goal snapshot'
         };
