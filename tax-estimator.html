@@ -1536,7 +1536,7 @@
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="kids-hint" id="itemizedHint">
-          Enter gifts eligible after their applicable AGI limits, excluding carryovers. The tool applies the 2026 0.5% AGI floor, SALT phase-down, and 7.5% medical floor, then compares against standard plus eligible non-itemizer cash gifts. Mortgage eligibility/debt limits and the 2026 high-income section 68 limit are not modeled.
+          Enter gifts eligible after their applicable AGI limits, excluding carryovers. The tool applies the 2026 0.5% AGI floor, SALT phase-down and 7.5% medical floor. It applies the 2026 section 68 limit and compares the resulting taxable income against standard plus eligible non-itemizer cash gifts; QBI is computed without section 68. Mortgage eligibility/debt limits are not modeled.
         </div>
       </div>
       <div class="adv-field" id="cashCharityField">
@@ -1750,6 +1750,7 @@
       <div class="confidence-note-label" id="confidenceLabel">Quick Estimate</div>
       <div class="confidence-note-text" id="confidenceText"></div>
     </div>
+    <p class="kids-hint" id="scopeNote" role="note"></p>
   </div>
 
   <!-- BREAKDOWN -->
@@ -1867,7 +1868,7 @@
     <div class="breakdown-row hidden" id="rowCTC">
       <div class="breakdown-name">
         <span class="breakdown-dot" style="background:#fb923c;"></span>
-        Child Tax Credit (est.)
+        Dependent Credits (est.)
         <span class="bk-hint">· reduces federal tax</span>
         <span class="tooltip-wrap"><span class="tooltip-icon">?</span><span class="tooltip-box">Applied against federal tax first.<br>Income phaseout is estimated.<br>Refundable ACTC is estimated separately when relevant.</span></span>
       </div>
@@ -2277,7 +2278,7 @@ function getQuarterlyPlan(context) {
   const priorYearAGI = Math.max(0, context.priorYearAGI || 0);
   const currentYearRequired = currentYearTax * 0.90;
   const priorYearMultiplier = getSafeHarborPriorYearMultiplier(context.status, priorYearAGI);
-  const hasValue = value => value !== '' && value != null && Number.isFinite(Number(value)) && Number(value) >= 0;
+  const hasValue = value => parseMoneyValue(value) !== null;
   const hasSafeHarborComparison = context.priorYearEligible !== false
     && hasValue(context.priorYearTotalTax) && hasValue(context.priorYearAGI);
   const priorYearRequired = hasSafeHarborComparison ? priorYearTotalTax * priorYearMultiplier : null;
@@ -2314,6 +2315,16 @@ function getQuarterlyPlan(context) {
 function getQuarterlyDates(year) {
   // IRS Forms 1040-ES for the supported tax years, including weekend shifts.
   return [`Apr 15, ${year}`, `Jun ${year === 2025 ? 16 : 15}, ${year}`, `Sep 15, ${year}`, `Jan 15, ${year + 1}`];
+}
+
+function parseMoneyValue(value) {
+  if (value == null) return null;
+  const raw = String(value).replace(/,/g, '').trim();
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) return null;
+  const amount = Number(raw);
+  // A planning-input ceiling keeps annualization, combined sources and cents
+  // arithmetic comfortably finite. It is a software limit, not a tax rule.
+  return Number.isFinite(amount) && amount <= 1e12 ? amount : null;
 }
 
 // ─── APP STATE ────────────────────────────────────────────────────────────
@@ -2375,22 +2386,18 @@ function fmt(v) {
 }
 
 function parseNum(id) {
-  const raw = String($(id).value).replace(/,/g, '').trim();
-  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) return 0;
-  const value = Number(raw);
-  return Number.isFinite(value * 12) ? Math.max(0, value) : 0;
+  return parseMoneyValue($(id).value) ?? 0;
 }
 
 // ─── INPUT FORMATTING & VALIDATION ───────────────────────────────────────
 function onMoneyFocus(el) {
   const raw = String(el.value).replace(/,/g, '').trim();
-  el.value = raw === '0' ? '' : raw;
+  el.value = raw;
 }
 
 function onMoneyBlur(el) {
   const raw = String(el.value).replace(/,/g, '').trim();
-  const parsed = Number(raw);
-  const num = Number.isFinite(parsed * 12) ? parsed : 0;
+  const num = parseMoneyValue(raw);
   if (num > 0) {
     const hasDecimals = raw.includes('.');
     el.value = num.toLocaleString('en-US', {
@@ -2398,9 +2405,10 @@ function onMoneyBlur(el) {
       maximumFractionDigits: hasDecimals ? 2 : 0
     });
   } else {
-    el.value = raw !== '' && Number(raw) === 0 ? '0' : '';
+    el.value = num === 0 ? '0' : '';
   }
   el.classList.remove('input-error');
+  el.setAttribute('aria-invalid', 'false');
   const errNote = document.getElementById(el.id + 'Err');
   if (errNote) errNote.classList.remove('show');
   scheduleCalc();
@@ -2409,10 +2417,12 @@ function onMoneyBlur(el) {
 function validateNumInput(el) {
   const raw     = String(el.value);
   const stripped = raw.replace(/,/g, '');
-  const invalid  = /[^0-9.]/.test(stripped) || (stripped.split('.').length > 2);
+  const invalid = stripped !== '' && stripped !== '.' && parseMoneyValue(raw) === null;
   const errId    = el.id + 'Err';
   const errNote  = document.getElementById(errId);
   el.classList.toggle('input-error', invalid);
+  el.setAttribute('aria-invalid', String(invalid));
+  if (invalid && errNote) errNote.textContent = 'Enter a nonnegative decimal amount up to $1 trillion (software limit).';
   if (errNote) errNote.classList.toggle('show', invalid);
 }
 
@@ -2878,6 +2888,41 @@ function getUsedDeduction(context) {
     : { usedDeduction: standardTotal, usedDeductionMode: 'standard', nonItemizerCharity };
 }
 
+function getSection68Reduction(context) {
+  if (context.year !== 2026) return 0;
+  // P.L.119-21 §70111; final Pub.505 (2026), Worksheet 2-6 lines 3–13.
+  // The worksheet rounds the multiplier to .054; retain the enacted 2/37
+  // for this calculator's cents model. QBI is computed WITHOUT section 68.
+  const threshold = TAX[2026].brackets[context.status][5][0];
+  const excess = Math.max(0, context.agi - (context.qbiDeduction || 0) - threshold);
+  return Math.min(Math.max(0, context.itemizedTotal), excess) * 2 / 37;
+}
+
+function getFederalDeductionPlan(context) {
+  const standard = getUsedDeduction({...context, itemizedOn: false});
+  function evaluate(choice) {
+    const qbiTaxableBeforeQBI = Math.max(0, context.agi - choice.usedDeduction);
+    const qbiCalc = context.qbiOn ? getQBIDeduction({
+      ...context.qbi, year: context.year, status: context.status,
+      taxableBeforeQBI: qbiTaxableBeforeQBI,
+    }) : {deduction: 0, wageLimit: 0, appliedLimit: false, minimumApplied: false};
+    const section68Reduction = choice.usedDeductionMode === 'itemized'
+      ? getSection68Reduction({...context, qbiDeduction: qbiCalc.deduction}) : 0;
+    const usedDeduction = choice.usedDeduction - section68Reduction;
+    const taxableBeforeQBI = Math.max(0, context.agi - usedDeduction);
+    return {...choice, usedDeduction, section68Reduction, qbiTaxableBeforeQBI,
+      taxableBeforeQBI, taxableIncome: Math.max(0, taxableBeforeQBI - qbiCalc.deduction), qbiCalc};
+  }
+  const standardPlan = evaluate(standard);
+  if (!context.itemizedOn) return standardPlan;
+  const itemizedPlan = evaluate({usedDeduction: Math.max(0, context.itemizedTotal), usedDeductionMode: 'itemized', nonItemizerCharity: 0});
+  // Evaluate both alternatives once; neither calculation feeds its section 68
+  // reduction back into QBI. Preserve the larger deduction when tax is tied.
+  return itemizedPlan.taxableIncome < standardPlan.taxableIncome
+    || (itemizedPlan.taxableIncome === standardPlan.taxableIncome && itemizedPlan.usedDeduction > standardPlan.usedDeduction)
+    ? itemizedPlan : standardPlan;
+}
+
 function getQBIThresholds(year, status) {
   const qbiLimits = QBI_PHASEOUT[year] || QBI_PHASEOUT[2026];
   return {
@@ -2944,6 +2989,18 @@ function getDeductionLabel(result) {
   return result.nonItemizerCharity > 0 ? 'Standard + Qualifying Cash Gifts' : 'Standard Deduction';
 }
 
+function getTaxScopeNotes(result) {
+  const notes = ['Planning scope: one business and W-2 income, base standard deductions only. No AMT, EITC, capital-gain/dividend tax, loss carryovers or age/dependent adjustments.'];
+  if (result.investmentIncome > 0) notes.push('Investment input affects NIIT only; its regular income tax is excluded.');
+  if (result.stateOn) notes.push('State is an approximation; state deductions, surtaxes and local taxes are excluded.');
+  if (result.sCorpOn) notes.push('S-Corp salary, distributions and benefits require professional review. Include owner wages in business QBI wages; they are not added automatically.');
+  if (result.retireOn) notes.push('Retirement assumes remaining eligible plan room; other-employer deferrals, catch-up and combined-plan rules are excluded.');
+  if (result.dependents > 0) notes.push('Dependent eligibility is assumed. ACTC uses the ordinary earned-income method, excluding the three-child payroll alternative.');
+  if (result.itemizedOn) notes.push('Gifts and mortgage interest must satisfy their eligibility, AGI and debt limits. Carryovers are excluded.');
+  if (result.section68Reduction > 0) notes.push(`2026 section 68 reduced itemized deductions by ${fmt(result.section68Reduction)}; QBI was computed before that limit.`);
+  return notes;
+}
+
 function getAffordableSCorpSalary(available, requested, se) {
   const funds = Math.max(0, available);
   const belowBase = funds / (1 + se.ss / 2 + se.medicare / 2);
@@ -2990,8 +3047,8 @@ function renderQBIAdvancedFields(result) {
   const hint = $('qbiAccuracyHint');
   if (!wagesField || !ubiaToggleField || !ubiaField || !hint) return;
 
-  const showAdvanced = !!(result && appState.qbiOn && result.taxableBeforeQBI > result.qbiThreshold
-    && (appState.qbiBizType === 'general' || result.taxableBeforeQBI < result.qbiThreshold + result.qbiPhaseRange));
+  const showAdvanced = !!(result && appState.qbiOn && result.qbiTaxableBeforeQBI > result.qbiThreshold
+    && (appState.qbiBizType === 'general' || result.qbiTaxableBeforeQBI < result.qbiThreshold + result.qbiPhaseRange));
   wagesField.style.display = showAdvanced ? 'block' : 'none';
   ubiaToggleField.style.display = showAdvanced ? 'block' : 'none';
   ubiaField.style.display = (showAdvanced && appState.qbiHasUbia) ? 'block' : 'none';
@@ -3044,7 +3101,7 @@ function renderQBIAccuracyPrompt(result) {
   }
 
   const threshold = result.qbiThreshold;
-  const showPrompt = result.taxableBeforeQBI >= threshold * 0.8;
+  const showPrompt = result.qbiTaxableBeforeQBI >= threshold * 0.8;
 
   if (!showPrompt) {
     promptEl.classList.remove('show');
@@ -3054,8 +3111,8 @@ function renderQBIAccuracyPrompt(result) {
     return;
   }
 
-  const inPhaseoutZone = result.taxableBeforeQBI > threshold && result.taxableBeforeQBI < threshold + result.qbiPhaseRange;
-  const abovePhaseout = result.taxableBeforeQBI >= threshold + result.qbiPhaseRange;
+  const inPhaseoutZone = result.qbiTaxableBeforeQBI > threshold && result.qbiTaxableBeforeQBI < threshold + result.qbiPhaseRange;
+  const abovePhaseout = result.qbiTaxableBeforeQBI >= threshold + result.qbiPhaseRange;
 
   let copy = 'Higher-income QBI cases depend on business type. ';
   if (appState.qbiBizType === 'sstb') {
@@ -3065,7 +3122,7 @@ function renderQBIAccuracyPrompt(result) {
         ? 'Service business selected, so this estimate is phasing QBI down inside the IRS phaseout range.'
         : 'Service business selected. If income rises into the IRS phaseout range, QBI can drop quickly.');
   } else {
-    if (result.taxableBeforeQBI <= threshold) {
+    if (result.qbiTaxableBeforeQBI <= threshold) {
       copy += 'General business selected. You are still below the main IRS threshold, so no wage/property limit is needed yet.';
     } else if (result.qbiNeedsMoreData) {
       copy += 'General business selected. Add <strong>business W-2 wages</strong> for a better above-threshold QBI estimate.';
@@ -3186,10 +3243,7 @@ function renderConfidenceNote(result) {
     label.textContent = 'Complex Case';
     text.textContent = `This result includes ${complexFlags.join(', ')}. It is useful for planning, but some high-detail IRS rules are still simplified.`;
   }
-  if (result.year === 2026 && result.usedDeductionMode === 'itemized'
-      && result.agiProxyForItemized > TAX[2026].brackets[result.status][5][0]) {
-    text.textContent += ' The 2026 high-income itemized deduction limit (section 68) is not modeled; this case needs CPA review and may understate federal tax.';
-  }
+  if (result.section68Reduction > 0) text.textContent += ' The 2026 section 68 reduction is applied; QBI is computed without that limit.';
   wrap.classList.add('show');
 }
 
@@ -3997,7 +4051,7 @@ function restoreState() {
   }
   if (saved.expMode === 'pct' || saved.expMode === 'dollar') setExpMode(saved.expMode, true);
   updateChipActive();
-  if (saved.filingStatus) $('filingStatus').value = saved.filingStatus;
+  if (['single','mfj','hoh'].includes(saved.filingStatus)) $('filingStatus').value = saved.filingStatus;
   if (typeof saved.qbiOn === 'boolean' && saved.qbiOn !== appState.qbiOn) toggleQBI();
   $('qbiActiveInput').checked = saved.qbiActive === true;
   if (saved.qbiBizType === 'general' || saved.qbiBizType === 'sstb') appState.qbiBizType = saved.qbiBizType;
@@ -4414,47 +4468,30 @@ function calculate() {
     year: appState.year,
     status,
   });
-  const deductionChoice = getUsedDeduction({
-    itemizedOn: appState.itemizedOn,
-    standardDeduction,
-    itemizedTotal: itemizedCalc.itemizedTotal,
-    year: appState.year,
-    status,
-    qualifyingCashGifts: parseNum('cashCharityInput'),
-  });
-  const usedDeduction = deductionChoice.usedDeduction;
-  const usedDeductionMode = deductionChoice.usedDeductionMode;
-  const nonItemizerCharity = deductionChoice.nonItemizerCharity;
-
-  const taxableBeforeQBI = Math.max(0, grossIncome - halfSE - usedDeduction - retireContrib);
-
   // QBI
-  let qbiDeduction = 0;
-  let qbiNeedsMoreData = false;
-  let qbiAppliedWageUbiaLimit = false;
-  let qbiWageUbiaLimit = 0;
-  let qbiMinimumApplied = false;
   const qbiInputWages = parseNum('qbiWagesInput');
   const qbiInputUbia = appState.qbiHasUbia ? parseNum('qbiUbiaInput') : 0;
   appState.qbiBusinessWages = $('qbiWagesInput').value;
   appState.qbiUbia = $('qbiUbiaInput').value;
   appState.qbiAccuracyMode = getQBIAccuracyMode();
-  if (appState.qbiOn) {
-    const qbiBase = getQBIBase({ isSCorp, distribution: sCorpDistribution, netProfit, halfSE, retirementDeduction: retireContrib, retirePlanType: appState.retirePlanType });
-    const qbiCalc = getQBIDeduction({
-      year: appState.year, status, businessType: appState.qbiBizType,
-      qbiBase, taxableBeforeQBI, wages: qbiInputWages, ubia: qbiInputUbia,
+  const qbiBase = getQBIBase({isSCorp, distribution: sCorpDistribution, netProfit, halfSE, retirementDeduction: retireContrib, retirePlanType: appState.retirePlanType});
+  const deductionPlan = getFederalDeductionPlan({
+    year: appState.year, status, agi: itemizedAGIProxy, standardDeduction,
+    itemizedOn: appState.itemizedOn, itemizedTotal: itemizedCalc.itemizedTotal,
+    qualifyingCashGifts: parseNum('cashCharityInput'), qbiOn: appState.qbiOn,
+    qbi: {qbiBase, businessType: appState.qbiBizType, wages: qbiInputWages, ubia: qbiInputUbia,
       materiallyParticipates: $('qbiActiveInput').checked,
-    });
-    qbiDeduction = qbiCalc.deduction;
-    qbiWageUbiaLimit = qbiCalc.wageLimit;
-    qbiAppliedWageUbiaLimit = qbiCalc.appliedLimit;
-    qbiMinimumApplied = qbiCalc.minimumApplied;
-    qbiNeedsMoreData = taxableBeforeQBI > getQBIThresholds(appState.year,status).threshold && qbiInputWages <= 0 && qbiInputUbia <= 0;
-  }
+    },
+  });
+  const {usedDeduction, usedDeductionMode, nonItemizerCharity, taxableBeforeQBI,
+    qbiTaxableBeforeQBI, taxableIncome, section68Reduction, qbiCalc} = deductionPlan;
+  const qbiDeduction = qbiCalc.deduction;
+  const qbiWageUbiaLimit = qbiCalc.wageLimit;
+  const qbiAppliedWageUbiaLimit = qbiCalc.appliedLimit;
+  const qbiMinimumApplied = qbiCalc.minimumApplied;
+  const qbiNeedsMoreData = appState.qbiOn && qbiTaxableBeforeQBI > getQBIThresholds(appState.year,status).threshold && qbiInputWages <= 0 && qbiInputUbia <= 0;
   $('qbiActiveInput').disabled = !appState.qbiOn;
 
-  const taxableIncome    = Math.max(0, taxableBeforeQBI - qbiDeduction);
   const federalBeforeCTC = marginalTax(taxableIncome, data.brackets[status]);
 
   const dependents = clamp(parseInt($('dependentsInput').value) || 0, 0, 10);
@@ -4695,7 +4732,7 @@ function calculate() {
 
   const qbiActive = appState.qbiOn && qbiDeduction > 0;
   const { threshold: qbiThresholdNow, phaseRange: qbiPhaseRangeNow } = getQBIThresholds(appState.year, status);
-  const qbiPromptRelevant = appState.qbiOn && taxableBeforeQBI >= qbiThresholdNow * 0.8;
+  const qbiPromptRelevant = appState.qbiOn && qbiTaxableBeforeQBI >= qbiThresholdNow * 0.8;
   if ($('bkDeductionLabel')) {
     $('bkDeductionLabel').textContent = getDeductionLabel({usedDeductionMode, nonItemizerCharity});
   }
@@ -4852,6 +4889,8 @@ function calculate() {
     usedDeduction,
     usedDeductionMode,
     nonItemizerCharity,
+    section68Reduction,
+    qbiTaxableBeforeQBI,
     saltDeduction: itemizedCalc.saltDeduction,
     saltLimit: itemizedCalc.saltLimit,
     mortgageDeduction: itemizedCalc.mortgageDeduction,
@@ -4950,6 +4989,7 @@ function calculate() {
     ownerSalary: sCorpSalary,
     totalGrossIncome: grossIncome
   };
+  $('scopeNote').textContent = getTaxScopeNotes(window._lastResult).join(' ');
   renderQBIAccuracyPrompt(window._lastResult);
   renderCTCAccuracyPrompt();
   renderRetirementChips();
@@ -4970,7 +5010,7 @@ function calculate() {
 function copySummary() {
   calculate();
   const r = window._lastResult;
-  if (!r || r.grossIncome === 0) {
+  if (!r || !r.incomeAnnual) {
     showToast('Enter your income first', false);
     return;
   }
@@ -5050,7 +5090,8 @@ QUARTERLY DUE DATES
   Q3 - ${r.quarterlyDates[2]}   ->  ${fmt(r.quarterly)}
   Q4 - ${r.quarterlyDates[3]}   ->  ${fmt(r.quarterly)}
 
-Simplified planning estimate only. State rules, phaseouts, payroll treatment, and S-Corp salary assumptions can vary. Consult a CPA.
+${getTaxScopeNotes(r).join('\n')}
+Simplified planning estimate only. Consult a CPA.
 Generated by US Freelancer Tax Estimator
 `.trim();
 
@@ -5111,7 +5152,7 @@ function showToast(msg, success) {
 async function downloadImage() {
   calculate();
   const r = window._lastResult;
-  if (!r || r.grossIncome === 0) {
+  if (!r || !r.incomeAnnual) {
     showToast('Enter your income first to generate an image', false);
     return;
   }
@@ -5149,7 +5190,7 @@ async function downloadImage() {
     { label: 'S-Corp biz cost', val: '−' + fmt((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)), color: C.purple, show: !!r.sCorpOn && (((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)) > 0) },
     { label: 'S-Corp distribution', val: fmt(r.sCorpDistribution||0), color: C.blue, show: !!r.sCorpOn && (r.sCorpDistribution||0) > 0 },
     { label: 'QBI Deduction (est.)', val: '−' + fmt(r.qbiDeduction), color: C.green, show: r.qbiOn && r.qbiDeduction > 0 },
-    { label: 'Child Tax Credit (est.)', val: '−' + fmt(r.ctc), color: C.orange, show: r.ctc > 0 },
+    { label: 'Dependent Credits (est.)', val: '−' + fmt(r.ctc), color: C.orange, show: r.ctc > 0 },
     { label: 'Refundable Child Tax Credit', val: '−' + fmt(r.actcEstimate), color: C.orange, show: (r.actcEstimate||0) > 0 },
     { label: getDeductionLabel(r), val: '−' + fmt(r.usedDeduction), color: C.purple, show: (r.usedDeduction||0) > 0 },
     { label: 'Retirement Contrib.', val: '−' + fmt(r.retireContrib), color: C.purple, show: r.retireOn && r.retireContrib > 0 },
@@ -5172,7 +5213,20 @@ async function downloadImage() {
   const hBkCard    = SEC_PD + 16 + bkRows.length * ROW_H + SEC_PD;
   const hSACard    = 90;
   const hQtrCard   = SEC_PD + 16 + 4 * ROW_H + SEC_PD;
-  const hFooter    = 50;
+  const footerMeasure = document.createElement('canvas').getContext('2d');
+  footerMeasure.font = FUI(9.5, 400);
+  const scopeLines = [];
+  for (const note of getTaxScopeNotes(r)) {
+    let line = '';
+    for (const word of note.split(' ')) {
+      const next = line ? line + ' ' + word : word;
+      if (line && footerMeasure.measureText(next).width > IW) {
+        scopeLines.push(line); line = word;
+      } else line = next;
+    }
+    if (line) scopeLines.push(line);
+  }
+  const hFooter = 50 + scopeLines.length * 14;
 
   const totalH = hHeader + GAP + hHero + GAP + hBkCard + GAP + hSACard + GAP + hQtrCard + GAP + hFooter + 30;
 
@@ -5321,8 +5375,10 @@ async function downloadImage() {
   cy += qH + GAP;
 
   const footerY = cy + 20;
-  txt('Estimate only  .  Not tax advice  .  Consult a qualified CPA', W/2, footerY, FUI(9.5, 400), C.muted, 'center');
-  txt('usafreelancecalculator.com', W/2, footerY + 18, FUI(9, 700), 'rgba(245,200,66,0.4)', 'center');
+  scopeLines.forEach((line,index) => txt(line, PAD, footerY + index * 14, FUI(9.5,400), C.muted));
+  const finalFooterY = footerY + scopeLines.length * 14;
+  txt('Estimate only  .  Not tax advice  .  Consult a qualified CPA', W/2, finalFooterY, FUI(9.5, 400), C.muted, 'center');
+  txt('usafreelancecalculator.com', W/2, finalFooterY + 18, FUI(9, 700), 'rgba(245,200,66,0.4)', 'center');
 
   try {
     const dataURL = canvas.toDataURL('image/png');
@@ -5578,7 +5634,7 @@ function downloadPDF() {
   var taxRows = [];
   if (ctc > 0 && federalBefore > 0) {
     taxRows.push(['Federal tax before credit', fd(federalBefore), 'normal']);
-    taxRows.push(['Child tax credit', signed(-ctc), 'negative']);
+    taxRows.push(['Dependent credits (CTC/ODC)', signed(-ctc), 'negative']);
     if (num(r.actcEstimate) > 0) taxRows.push(['Refundable child tax credit (est.)', '−' + fd(r.actcEstimate), 'negative']);
     taxRows.push(['Federal tax after credit', fd(r.federalTax), 'normal']);
   } else {
@@ -5654,8 +5710,9 @@ function downloadPDF() {
       #pdfRenderRoot .footer-chip .main{color:#fff;font-size:15px;font-weight:900;line-height:1.15;white-space:nowrap}
       #pdfRenderRoot .footer-chip .sub{color:#d4def5;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.35px}
       #pdfRenderRoot .bottom-line{margin-top:18px;height:2px;background:linear-gradient(90deg,transparent 0%, rgba(94,132,196,.7) 12%, rgba(94,132,196,.7) 88%, transparent 100%);border-radius:99px}
-      #pdfRenderRoot .footer-note{margin-top:10px;display:flex;justify-content:space-between;gap:16px;align-items:center;font-size:11px;color:#bfd0ec;white-space:nowrap}
+      #pdfRenderRoot .footer-note{margin-top:10px;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;font-size:11px;color:#bfd0ec;white-space:normal}
       #pdfRenderRoot .footer-note .site2{color:#dbe7ff;font-weight:800}
+      #pdfRenderRoot .scope-notes{margin-top:10px;color:#bfd0ec;font-size:10px;line-height:1.45;white-space:normal}
     </style>
     <div class="pdf-page">
       <div class="topbar">
@@ -5744,6 +5801,7 @@ function downloadPDF() {
           <div>${r.quarterlyMode === 'safe_harbor' ? 'Safe harbor may leave tax due at filing.' : 'Full reserve is a planning amount, not a payment obligation.'} Simplified estimate; review with a CPA.</div>
           <div class="site2">usafreelancecalculator.com</div>
         </div>
+        <div class="scope-notes">${getTaxScopeNotes(r).map(esc).join('<br>')}</div>
       </div>
     </div>
   </div>`;

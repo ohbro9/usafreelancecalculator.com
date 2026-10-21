@@ -203,3 +203,65 @@ test('S-Corp salary plus employer payroll fits available business profit', () =>
     near(salary+Math.min(salary,se.wageBase)*.062+salary*.0145,available,'salary budget reconciles');
   }
 });
+
+test('section 68 uses enacted 2/37 after QBI, with both sides of each filing-status boundary', () => {
+  // Final Pub.505 (2026), Worksheet 2-6 lines 3–13; P.L.119-21 §70111.
+  // IRS worksheet uses rounded 0.054; these cents fixtures use exact statutory 2/37.
+  const reduce=helper('getSection68Reduction');
+  for(const [status,threshold] of [['single',640600],['hoh',640600],['mfj',768700]]) {
+    assert.equal(reduce({year:2026,status,agi:threshold,itemizedTotal:100000,qbiDeduction:0}),0);
+    near(reduce({year:2026,status,agi:threshold+3700,itemizedTotal:100000,qbiDeduction:0}),200,'partial section 68');
+    near(reduce({year:2026,status,agi:threshold+200000,itemizedTotal:100000,qbiDeduction:0}),200000/37,'full section 68');
+  }
+  assert.equal(reduce({year:2025,status:'single',agi:800000,itemizedTotal:100000,qbiDeduction:0}),0);
+  assert.equal(reduce({year:2026,status:'single',agi:650000,itemizedTotal:100000,qbiDeduction:40000}),0,'QBI shelters the threshold');
+});
+test('section 68 can change standard/itemized choice and never feeds back into QBI', () => {
+  helper('getSection68Reduction');
+  const plan=helper('getFederalDeductionPlan');
+  const base={year:2026,status:'single',agi:800000,standardDeduction:16100,itemizedTotal:17000,itemizedOn:true,qbiOn:false,qbi:{}};
+  assert.equal(plan(base).usedDeductionMode,'standard');
+  assert.equal(plan(base).usedDeduction,16100);
+  const large=plan({...base,itemizedTotal:100000});
+  near(large.section68Reduction,200000/37,'full reduction');
+  near(large.taxableIncome,705405.4054054054,'limited itemized taxable income');
+  const qbi=plan({...base,itemizedTotal:600000,qbiOn:true,qbi:{qbiBase:200000,businessType:'general',wages:0,ubia:0}});
+  assert.equal(qbi.qbiTaxableBeforeQBI,200000);
+  assert.equal(qbi.qbiCalc.deduction,40000,'QBI determined without section 68');
+  near(qbi.section68Reduction,6454.054054054054,'reduction uses AGI minus QBI');
+  near(qbi.taxableIncome,166454.05405405405,'no circular rephasing of QBI');
+});
+test('QBI phase-in fixtures cover both years, all statuses, SSTB and business property', () => {
+  for(const [year,status,threshold,range] of [[2025,'single',197300,50000],[2025,'hoh',197300,50000],[2025,'mfj',394600,100000],[2026,'single',201750,75000],[2026,'hoh',201750,75000],[2026,'mfj',403500,150000]]) {
+    const base={year,status,qbiBase:100000,wages:20000,ubia:0,businessType:'general'};
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold-1}).deduction,20000);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold}).deduction,20000);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold+range/2}).deduction,15000);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold+range}).deduction,10000);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold+range/2,businessType:'sstb'}).deduction,7500);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold+range,businessType:'sstb'}).deduction,0);
+    assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:threshold+range,wages:0,ubia:400000}).deduction,10000);
+  }
+  const active={year:2026,status:'single',taxableBeforeQBI:239250,businessType:'sstb',wages:0,ubia:0,materiallyParticipates:true};
+  near(tax.getQBIDeduction({...active,qbiBase:1999}).deduction,99.95,'below adjusted active QBI boundary');
+  assert.equal(tax.getQBIDeduction({...active,qbiBase:2000}).deduction,400);
+  assert.equal(tax.getQBIDeduction({...active,qbiBase:-10000}).deduction,0);
+});
+test('ordinary SE and Additional Medicare boundaries are preserved in both years', () => {
+  const calc=helper('getSelfEmploymentTax');
+  for(const year of [2025,2026]) {
+    const se=tax.TAX[year].SE;
+    near(calc(100000,se.wageBase, se.wageBase,'single',se).seStandard,2678.15,'Medicare after SS cap');
+    near(calc(100000,se.wageBase-100,se.wageBase-100,'single',se).seStandard,2690.55,'remaining $100 SS base');
+    for(const [status,threshold] of [['single',200000],['hoh',200000],['mfj',250000]]) {
+      assert.equal(calc(0,threshold,threshold,status,se).amedTax,0);
+      near(calc(0,threshold+1000,threshold+1000,status,se).amedTax,9,'wages above threshold');
+    }
+  }
+});
+test('money grammar rejects malformed prior-year tax and non-decimal blur conversions', () => {
+  const parse=helper('parseMoneyValue');
+  for(const raw of ['0x100','1e3','123abc','-1','1'+'0'.repeat(307)]) assert.equal(parse(raw),null);
+  assert.equal(parse('0'),0);assert.equal(parse('1,000.50'),1000.5);
+  assert.equal(tax.getQuarterlyPlan({currentYearTax:30000,withholding:0,status:'single',mode:'safe_harbor',priorYearEligible:true,priorYearTotalTax:'0x0',priorYearAGI:'0'}).annualTarget,27000);
+});

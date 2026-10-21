@@ -305,6 +305,123 @@ test('mobile PDF and PNG downloads render', async page => {
     if(process.env.TAX_ARTIFACT_DIR) await artifact.saveAs(path.join(process.env.TAX_ARTIFACT_DIR,'mobile-'+artifact.suggestedFilename()));
   }
 });
+test('review: section 68 limits itemized deductions in the actual calculator and reports', async page => {
+  await seed(page,300);await mockPDF(page);await mockCopy(page);
+  const r=await page.evaluate(()=>{
+    toggleW2();document.getElementById('w2Input').value='800000';
+    toggleItemized();document.getElementById('mortgageInterestInput').value='100000';
+    toggleQBI();calculate();copySummary();downloadPDF();
+    return {r:window._lastResult,copy:window.copiedText,pdf:window.pdfText};
+  });
+  near(r.r.section68Reduction,5405.405405405405);near(r.r.federalTax,217068.25);
+  assert.match(r.copy,/section 68/i);assert.match(r.pdf,/section 68/i);
+});
+test('review: deduction selection compares the amounts after section 68', async page => {
+  await seed(page,300);
+  const r=await page.evaluate(()=>{
+    toggleW2();document.getElementById('w2Input').value='800000';
+    toggleItemized();document.getElementById('mortgageInterestInput').value='17000';
+    toggleQBI();calculate();return window._lastResult;
+  });
+  assert.equal(r.usedDeductionMode,'standard');assert.equal(r.usedDeduction,16100);
+});
+test('review: malformed primary income with retained W-2 wages blocks every export', async page => {
+  await seed(page);await mockPDF(page);await mockCopy(page);
+  const r=await page.evaluate(async()=>{
+    toggleW2();document.getElementById('w2Input').value='50000';calculate();
+    window.clicks=0;HTMLAnchorElement.prototype.click=function(){window.clicks++;};
+    document.getElementById('incomeInput').value='123abc';
+    copySummary();downloadPDF();await downloadImage();
+    return {copy:window.copiedText||'',pdf:window.pdfText||'',clicks:window.clicks};
+  });
+  assert.deepEqual(r,{copy:'',pdf:'',clicks:0});
+});
+test('review: decimal grammar remains strict after blur and known zero survives focus', async page => {
+  await seed(page);
+  const r=await page.evaluate(()=>{
+    const el=document.getElementById('incomeInput');el.value='0x100';onMoneyBlur(el);calculate();
+    const income=window._lastResult.incomeAnnual;
+    const prior=document.getElementById('priorYearTaxInput');prior.value='0';onMoneyFocus(prior);onMoneyBlur(prior);
+    return {income,prior:prior.value};
+  });
+  assert.deepEqual(r,{income:0,prior:'0'});
+});
+test('review: return scope and NIIT-only input are disclosed in UI and every report', async page => {
+  await seed(page,250000);await mockPDF(page);await mockCopy(page);
+  const r=await page.evaluate(async()=>{
+    document.getElementById('niitInput').value='10000';calculate();copySummary();downloadPDF();
+    const original=CanvasRenderingContext2D.prototype.fillText;const png=[];
+    CanvasRenderingContext2D.prototype.fillText=function(text,...args){png.push(text);return original.call(this,text,...args);};
+    HTMLAnchorElement.prototype.click=function(){};await downloadImage();
+    return {ui:document.getElementById('scopeNote')?.textContent||'',copy:window.copiedText,pdf:window.pdfText,png:png.join(' ')};
+  });
+  for(const output of Object.values(r)) {assert.match(output,/AMT/);assert.match(output,/Investment input affects NIIT only/);}
+});
+test('review: ODC is labeled as a dependent credit rather than a child credit in reports', async page => {
+  await seed(page);await mockPDF(page);
+  const r=await page.evaluate(()=>{
+    document.getElementById('dependentsInput').value='1';appState.ctcMode='mixed';appState.ctcOtherDependents=1;
+    calculate();downloadPDF();return {credit:window._lastResult.ctc,ui:document.getElementById('rowCTC').innerText,pdf:window.pdfText};
+  });
+  assert.equal(r.credit,500);assert.match(r.ui,/Dependent Credits/);assert.match(r.pdf,/Dependent credits/);
+});
+test('review: unsupported saved filing status falls back without losing valid inputs', async page => {
+  await page.evaluate(()=>localStorage.setItem('fte_v1_state',JSON.stringify({filingStatus:'mfs',incomeInput:'100000',year:2026})));
+  await page.reload({waitUntil:'domcontentloaded'});
+  const r=await page.evaluate(()=>window._lastResult);
+  assert.equal(r.status,'single');assert.equal(r.incomeAnnual,100000);
+});
+test('review: large supported inputs remain finite across combined income sources', async page => {
+  const r=await page.evaluate(()=>{
+    document.getElementById('incomeInput').value='1000000000000';setIncMode('monthly');toggleW2();
+    document.getElementById('filingStatus').value='mfj';
+    document.getElementById('w2Input').value='1000000000000';
+    document.getElementById('spouseW2Input').value='1000000000000';calculate();
+    return window._lastResult;
+  });
+  for(const [key,value] of Object.entries(r))if(typeof value==='number')assert.ok(Number.isFinite(value),key);
+  assert.equal(r.grossIncome,14000000000000);
+});
+test('review: new controls have native labels, keyboard operation and year visibility', async page => {
+  await page.setViewportSize({width:390,height:844});await seed(page);
+  await page.evaluate(()=>toggleAdv());await frames(page);
+  const ids=['qbiActiveInput','cashCharityInput','quarterlyModeInput','priorYearEligibleInput'];
+  const labels=await page.evaluate(ids=>ids.map(id=>document.getElementById(id).labels.length),ids);
+  for(const count of labels)assert.ok(count>0);
+  await page.locator('#qbiActiveInput').focus();await page.keyboard.press('Space');
+  assert.equal(await page.locator('#qbiActiveInput').isChecked(),true);
+  await page.getByLabel('2026 Qualifying Cash Gifts (Non-itemizers)',{exact:true}).fill('1000');
+  await page.getByLabel('Quarterly Planning Target',{exact:true}).selectOption('safe_harbor');
+  await page.locator('#priorYearEligibleInput').focus();await page.keyboard.press('Space');
+  assert.equal(await page.locator('#priorYearEligibleInput').isChecked(),true);
+  await page.locator('#yr2025').click();await frames(page);
+  assert.equal(await page.locator('#cashCharityField').isHidden(),true);
+  await page.locator('#yr2026').click();await frames(page);
+  assert.equal(await page.locator('#cashCharityInput').inputValue(),'1,000');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+});
+test('review: section 68 desktop and mobile exports remain readable native files', async page => {
+  if (!process.env.TAX_EXPORT_LIB_DIR) return false;
+  await seed(page,300);
+  await page.addScriptTag({path:path.join(process.env.TAX_EXPORT_LIB_DIR,'jspdf/dist/jspdf.umd.min.js')});
+  await page.addScriptTag({path:path.join(process.env.TAX_EXPORT_LIB_DIR,'html2canvas/dist/html2canvas.min.js')});
+  await page.evaluate(()=>{
+    toggleW2();document.getElementById('w2Input').value='800000';toggleItemized();
+    document.getElementById('mortgageInterestInput').value='100000';toggleQBI();calculate();
+    const render=window.html2canvas;window.html2canvas=(el,options)=>{window.actualPDFText=el.innerText;return render(el,options);};
+  });
+  for(const [profile,width] of [['desktop',1280],['mobile',390]]) {
+    await page.setViewportSize({width,height:900});
+    for(const kind of ['PDF','Image']) {
+      const download=page.waitForEvent('download');await page.evaluate(kind=>window['download'+kind](),kind);
+      const artifact=await download;const data=fs.readFileSync(await artifact.path());
+      assert.equal(kind==='PDF'?data.subarray(0,5).toString():data.subarray(0,8).toString('hex'),kind==='PDF'?'%PDF-':'89504e470d0a1a0a');
+      if(process.env.TAX_ARTIFACT_DIR)await artifact.saveAs(path.join(process.env.TAX_ARTIFACT_DIR,`section68-${profile}-${artifact.suggestedFilename()}`));
+    }
+    assert.match(await page.evaluate(()=>window.actualPDFText),/section 68/);
+    if(process.env.TAX_ARTIFACT_DIR)await page.screenshot({path:path.join(process.env.TAX_ARTIFACT_DIR,`section68-${profile}.png`),fullPage:true});
+  }
+});
 (async () => {
   const server = http.createServer((req,res) => {
     const file = path.resolve(root, '.' + new URL(req.url,'http://localhost').pathname);
@@ -319,7 +436,9 @@ test('mobile PDF and PNG downloads render', async page => {
   await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
   try {
     browser = await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium'});
-    for (const t of cases) {
+    const selected=cases.filter(t=>!process.env.TAX_TEST_FILTER || t.name.includes(process.env.TAX_TEST_FILTER));
+    assert.ok(selected.length,'test filter must select at least one case');
+    for (const t of selected) {
       const context = await browser.newContext({viewport:{width:1280,height:900},timezoneId:'America/New_York'});
       const page = await context.newPage(); const errors=[]; page.on('pageerror',error => errors.push(error.message));
       await page.route('**/*',route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort());
