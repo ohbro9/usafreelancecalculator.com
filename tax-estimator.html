@@ -2369,6 +2369,7 @@ function onMoneyBlur(el) {
   el.classList.remove('input-error');
   const errNote = document.getElementById(el.id + 'Err');
   if (errNote) errNote.classList.remove('show');
+  scheduleCalc();
 }
 
 function validateNumInput(el) {
@@ -2624,6 +2625,7 @@ function renderDependentChips() {
 function setRetirePlanType(type) {
   appState.retirePlanType = type;
   renderRetirementChips();
+  scheduleCalc();
 }
 
 function clearStatePresetChoice() {
@@ -3696,6 +3698,7 @@ function buildToolkitImportMeta(shared) {
 }
 
 function goNextTool() {
+  calculate();
   const r = window._lastResult;
   if (!r || !r.incomeAnnual) { showToast('Enter your income first', false); return; }
   const gross = r.incomeAnnual;
@@ -3867,6 +3870,7 @@ function collectState() {
     stateOn:         appState.stateOn,
     statePresetChoice: appState.statePresetChoice,
     stateDropdown:   $('stateDropdown').value,
+    stateName:       getSelectedStateName(),
     statePct:        $('statePct').value,
     retireOn:        appState.retireOn,
     retirePlanType:  appState.retirePlanType,
@@ -3937,7 +3941,18 @@ function restoreState() {
     appState.statePresetChoice = saved.statePresetChoice;
   }
   if (saved.stateDropdown != null) $('stateDropdown').value = saved.stateDropdown;
+  // Several states share a suggested rate, so the rate cannot identify a state.
+  // Keep the old value fallback for settings saved before stateName was added.
+  if (saved.stateName) {
+    const index = Array.from($('stateDropdown').options).findIndex(option => option.textContent === saved.stateName);
+    if (index >= 0) $('stateDropdown').selectedIndex = index;
+  }
   if (saved.statePct != null)      $('statePct').value      = saved.statePct;
+  if (appState.stateOn) {
+    const meta = getStateMeta(getSelectedStateName());
+    $('statePct').disabled = meta.mode === 'none' || meta.mode === 'flat_state';
+    updateStateHint(getSelectedStateName());
+  }
   if (saved.retirePlanType === '401k' || saved.retirePlanType === 'sep' || saved.retirePlanType === 'custom') {
     appState.retirePlanType = saved.retirePlanType;
   }
@@ -4861,7 +4876,7 @@ function calculate() {
   };
   renderQBIAccuracyPrompt(window._lastResult);
   renderCTCAccuracyPrompt();
-  renderRetirementPrompt(window._lastResult);
+  renderRetirementChips();
   renderSCorpPrompt(window._lastResult);
   renderConfidenceNote(window._lastResult);
 
@@ -4877,6 +4892,7 @@ function calculate() {
 
 // ─── COPY SUMMARY ─────────────────────────────────────────────────────────
 function copySummary() {
+  calculate();
   const r = window._lastResult;
   if (!r || r.grossIncome === 0) {
     showToast('Enter your income first', false);
@@ -4907,18 +4923,18 @@ function copySummary() {
 
   const ctcSection = (r.ctc > 0 && r.federalBeforeCTC > 0)
     ? `  Federal (before credit): ${fmt(r.federalBeforeCTC)}\n` +
-      `  Child Tax Credit:        −${fmt(r.ctc)}  (${r.dependents} kid${r.dependents!==1?'s':''} × ${fmt(r.creditPerKid)})\n` +
-      `${r.actcEstimate > 0 ? `  Add'l Child Tax Credit:  ${fmt(r.actcEstimate)}  (refundable est.)\n` : ''}` +
+      `  Dependent credits:      −${fmt(r.ctc)}  (nonrefundable CTC/ODC applied)\n` +
       `  Federal (after credit):  ${fmt(r.federalTax)}\n`
     : r.ctc > 0
       ? `  Federal Income Tax:      ${fmt(r.federalTax)}  (credit fully offset)\n` +
-        `  Child Tax Credit:        −${fmt(r.ctc)}  (${r.dependents} kid${r.dependents!==1?'s':''} × ${fmt(r.creditPerKid)})\n` +
-        `${r.actcEstimate > 0 ? `  Add'l Child Tax Credit:  ${fmt(r.actcEstimate)}  (refundable est.)\n` : ''}`
+        `  Dependent credits:      −${fmt(r.ctc)}  (nonrefundable CTC/ODC applied)\n`
       : `  Federal Income Tax:      ${fmt(r.federalTax)}\n`;
+  const refundableCreditLine = r.actcEstimate > 0
+    ? `  Add'l Child Tax Credit:  −${fmt(r.actcEstimate)}  (refundable est.)\n` : '';
 
   const payrollLine = r.sCorpOn
-    ? `  Payroll Tax (employee):  ${fmt(r.employeePayrollTax)}${r.amedTax > 0 ? `\n    incl. Add'l Medicare:  ${fmt(r.amedTax)}` : ''}\n`
-    : `  Self-Employment Tax:     ${fmt(r.seTotal)}${r.amedTax > 0 ? `\n    incl. Add'l Medicare:  ${fmt(r.amedTax)}` : ''}\n  1/2 SE Deduction:        -${fmt(r.halfSE)}\n`;
+    ? `  Payroll Tax (employee):  ${fmt(r.seTotal)}${r.amedTax > 0 ? `\n    incl. Add'l Medicare:  ${fmt(r.amedTax)}` : ''}\n`
+    : `  ${r.totalW2 > 0 ? 'W-2 + SE Payroll Taxes:  ' : 'Self-Employment Tax:     '}${fmt(r.seTotal)}${r.amedTax > 0 ? `\n    incl. Add'l Medicare:  ${fmt(r.amedTax)}` : ''}\n  1/2 SE Deduction:        -${fmt(r.halfSE)}\n`;
   const niitLine = r.niit > 0
     ? `  NIIT (3.8% est.):       ${fmt(r.niit)}\n`
     : '';
@@ -4944,7 +4960,7 @@ ${monthlyNote}${entityLine}Business Expenses:       ${fmt(r.expenses)}
 Net Business Profit:     ${fmt(r.netProfit)}
 ${sCorpIncomeSection}${yourW2Line}${spouseW2Line}${deductionLine}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TAX BREAKDOWN  (all values annual)
-${ctcSection}${payrollLine}${niitLine}  ${stateLine}${withholdingLine}${retireLine}${qbiSection}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${ctcSection}${refundableCreditLine}${payrollLine}${niitLine}  ${stateLine}${withholdingLine}${retireLine}${qbiSection}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total Personal Taxes:    ${fmt(r.totalTax)}
 Effective Rate:          ${fmtPct(r.effectiveRate)}  <- your actual avg rate
 Top Federal Bracket:     ${r.topRate ? r.topRate.toFixed(0) + '%' : '-'}  <- marginal (last dollar)
@@ -5021,6 +5037,7 @@ function showToast(msg, success) {
 
 // ─── DOWNLOAD IMAGE ────────────────────────────────────────────────────────
 async function downloadImage() {
+  calculate();
   const r = window._lastResult;
   if (!r || r.grossIncome === 0) {
     showToast('Enter your income first to generate an image', false);
@@ -5054,7 +5071,7 @@ async function downloadImage() {
   const statusMap = { single: 'Single', mfj: 'Married Filing Jointly', hoh: 'Head of Household' };
   const bkRows = [
     { label: 'Federal Income Tax', val: fmt(r.federalTax), color: C.red, show: true },
-    { label: r.sCorpOn ? 'Payroll Tax (employee)' : 'Self-Employment Tax', val: fmt(r.seTotal), color: C.gold, show: true },
+    { label: r.sCorpOn ? 'Payroll Tax (employee)' : (r.totalW2 > 0 ? 'W-2 + SE Payroll Taxes' : 'Self-Employment Tax'), val: fmt(r.seTotal), color: C.gold, show: true },
     { label: 'NIIT (3.8% est.)', val: fmt(r.niit), color: C.red, show: (r.niit||0) > 0 },
     { label: 'State Tax (' + r.statePctVal.toFixed(1) + '%)', val: fmt(r.stateTax), color: C.blue, show: r.stateOn },
     { label: 'S-Corp biz cost', val: '−' + fmt((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)), color: C.purple, show: !!r.sCorpOn && (((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)) > 0) },
@@ -5277,6 +5294,8 @@ function resetAll(skipSave) {
   appState.ctcMode           = 'all_ctc';
   appState.ctcOtherDependents = 0;
   appState.creditAccuracyMode = 'basic';
+  appState.retirePlanType     = '401k';
+  selectSNTPeriod('year');
   appState.expDollarValue    = '';
   appState.expPctValue       = '';
   appState.statePresetChoice = '';
@@ -5403,6 +5422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── DOWNLOAD PDF REPORT ──────────────────────────────────────────────────
 function downloadPDF() {
+  calculate();
   var r = window._lastResult;
   if (!r || !r.incomeAnnual) {
     showToast('Enter your income first', false);
@@ -5456,7 +5476,9 @@ function downloadPDF() {
   var ctc = num(r.ctc);
   var payrollMain = num(r.seTotal);
   var amed = num(r.amedTax || 0);
-  if (amed > 0 && !r.sCorpOn) payrollMain = Math.max(0, payrollMain - amed);
+  // seTotal already includes Additional Medicare in both entity modes.
+  // Remove it here because the report lists it separately below.
+  if (amed > 0) payrollMain = Math.max(0, payrollMain - amed);
   var qbi = num(r.qbiDeduction);
   var retirement = num(r.retireContrib);
   var sCorpExtra = num(r.sCorpAdminCost) + num(r.employerPayrollTax);
@@ -5489,7 +5511,7 @@ function downloadPDF() {
   }
   if (num(r.usedDeduction) > 0) taxRows.push([r.usedDeductionMode === 'itemized' ? 'Itemized deduction (est.)' : 'Standard deduction', signed(-r.usedDeduction), 'negative']);
   if (num(r.niit) > 0) taxRows.push(['NIIT (3.8% estimate)', fd(r.niit), 'normal']);
-  taxRows.push([r.sCorpOn ? 'Payroll tax on owner salary' : (num(r.yourW2) + num(r.spouseW2) > 0 ? 'W-2 + Self-Employment Payroll Taxes' : 'Self-employment tax'), fd(payrollMain), 'normal']);
+  taxRows.push([r.sCorpOn ? 'Payroll tax (employee, including other W-2)' : (num(r.yourW2) + num(r.spouseW2) > 0 ? 'W-2 + Self-Employment Payroll Taxes' : 'Self-employment tax'), fd(payrollMain), 'normal']);
   if (amed > 0) taxRows.push(['Additional Medicare tax', fd(amed), 'normal']);
   if (r.stateOn) taxRows.push([stateLabel, fd(r.stateTax), 'normal']);
   if (r.sCorpOn && sCorpExtra > 0) taxRows.push(['S-Corp admin + employer payroll', signed(-sCorpExtra), 'negative']);
