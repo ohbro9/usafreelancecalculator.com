@@ -5755,7 +5755,7 @@ function downloadPDF() {
             <div class="panel"><div class="rows">
               ${incomeRows.map(function(row){ return '<div class="row"><div class="label">'+esc(row[0])+'</div><div class="amt">'+esc(row[1])+'</div></div>'; }).join('')}
               <div class="divider"></div>
-              <div class="row total"><div class="label">Total gross income</div><div class="amt">${esc(fd(totalGross))}</div></div>
+              <div class="row total"><div class="label">Total income after business expenses</div><div class="amt">${esc(fd(totalGross))}</div></div>
             </div></div>
           </div>
           <div>
