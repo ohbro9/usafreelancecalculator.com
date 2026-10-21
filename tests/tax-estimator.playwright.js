@@ -45,7 +45,8 @@ test('retirement plan selection recalculates and saves without another input', a
   const r = await page.evaluate(() => window._lastResult);
   assert.equal(r.retirePlanType, 'sep');
   near(r.retireContrib, (20000 - r.halfSE) * 0.20);
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('fte_v1_state')).retirePlanType === 'sep');
+  // The debounced save may not have created this key on the first poll.
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('fte_v1_state'))?.retirePlanType === 'sep');
 });
 test('reset restores the default retirement plan and handoff period', async page => {
   await seed(page);
