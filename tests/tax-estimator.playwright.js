@@ -179,7 +179,100 @@ test('mobile layout and year selection remain usable', async page => {
   await page.locator('#yr2025').click(); await frames(page);
   assert.equal(await page.evaluate(() => window._lastResult.year), 2025);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  await page.evaluate(()=>toggleAdv());await frames(page);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
   if(process.env.TAX_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.TAX_ARTIFACT_DIR,'mobile-2025.png'),fullPage:true});
+});
+test('actual calculator observes ordinary SE threshold and conservative high-income QBI limits', async page => {
+  await seed(page,300);
+  assert.equal(await page.evaluate(() => window._lastResult.seStandard),0);
+  await seed(page,400000);
+  const r=await page.evaluate(() => window._lastResult);
+  assert.equal(r.qbiDeduction,0); assert.equal(r.qbiNeedsMoreData,true);
+});
+test('six federal baseline fixtures preserve both years and every offered filing status', async page => {
+  await seed(page);
+  // $100k Schedule C profit, no wages/credits/state/retirement. Independently
+  // evaluated ordinary-rate schedules after half-SE, standard deduction, QBI.
+  for(const [year,status,federal] of [[2025,'single',8498.5996],[2025,'mfj',5420.7816],[2025,'hoh',6313.7816],[2026,'single',8234.9996],[2026,'mfj',5334.5816],[2026,'hoh',6249.3816]]) {
+    const r=await page.evaluate(({year,status})=>{setYear(year);document.getElementById('filingStatus').value=status;calculate();return window._lastResult;},{year,status});
+    near(r.seStandard,14129.55);near(r.federalTax,federal);near(r.totalTax,federal+14129.55);
+  }
+});
+test('active QBI minimum is opt-in, persisted, and disabled for 2025', async page => {
+  await seed(page,1100);
+  const values=await page.evaluate(() => {
+    toggleW2(); document.getElementById('w2Input').value='50000'; calculate();
+    const ordinary=window._lastResult.qbiDeduction;
+    document.getElementById('qbiActiveInput').checked=true; calculate();
+    const active=window._lastResult.qbiDeduction;
+    localStorage.setItem('fte_v1_state',JSON.stringify(collectState()));
+    return {ordinary,active};
+  });
+  near(values.ordinary,204.457495); assert.equal(values.active,400);
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.equal(await page.evaluate(() => document.getElementById('qbiActiveInput').checked),true);
+  await page.evaluate(() => setYear(2025)); await frames(page);
+  near(await page.evaluate(() => window._lastResult.qbiDeduction),values.ordinary);
+});
+test('charitable deductions switch by year and agree with PDF layout', async page => {
+  await seed(page); await mockPDF(page);
+  const a=await page.evaluate(() => {
+    document.getElementById('cashCharityInput').value='1000'; calculate(); downloadPDF();
+    return {deduction:window._lastResult.usedDeduction,text:window.pdfText};
+  });
+  assert.equal(a.deduction,17100);assert.match(a.text,/Standard \+ Qualifying Cash Gifts/);
+  await page.evaluate(() => setYear(2025)); await frames(page);
+  assert.equal(await page.evaluate(() => window._lastResult.usedDeduction),15750);
+});
+test('safe-harbor controls distinguish full reserve, zero prior-year tax, and missing AGI', async page => {
+  await seed(page);
+  const r=await page.evaluate(() => {
+    document.getElementById('priorYearTaxInput').value='10000';
+    document.getElementById('priorYearAGIInput').value='100000';
+    document.getElementById('priorYearEligibleInput').checked=true; calculate();
+    const full=window._lastResult.quarterly;
+    document.getElementById('quarterlyModeInput').value='safe_harbor'; calculate();
+    const safe=window._lastResult.quarterly;
+    document.getElementById('priorYearTaxInput').value='0'; calculate();
+    const zero=window._lastResult.quarterly;
+    document.getElementById('priorYearAGIInput').value=''; calculate();
+    return {full,safe,zero,missing:window._lastResult.quarterly,tax:window._lastResult.federalEstimatedTaxLiability};
+  });
+  near(r.full,r.tax/4);assert.equal(r.safe,2500);assert.equal(r.zero,0);near(r.missing,r.tax*.9/4);
+});
+test('zero prior-year tax survives blur and persisted settings', async page => {
+  await seed(page);
+  await page.evaluate(()=>{
+    const tax=document.getElementById('priorYearTaxInput');tax.value='0';onMoneyBlur(tax);
+    const agi=document.getElementById('priorYearAGIInput');agi.value='0';onMoneyBlur(agi);
+    document.getElementById('priorYearEligibleInput').checked=true;
+    document.getElementById('quarterlyModeInput').value='safe_harbor';
+    calculate();localStorage.setItem('fte_v1_state',JSON.stringify(collectState()));
+  });
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.deepEqual(await page.evaluate(()=>[document.getElementById('priorYearTaxInput').value,document.getElementById('priorYearAGIInput').value,window._lastResult.quarterly]),['0','0',0]);
+});
+test('malformed or overflowing income cannot export a plausible numeric prefix', async page => {
+  await seed(page);await mockCopy(page);
+  const values=await page.evaluate(()=>{
+    return ['123abc','-100','1'+'0'.repeat(308)].map(raw=>{
+      document.getElementById('incomeInput').value=raw;copySummary();
+      return {income:window._lastResult.incomeAnnual,copied:window.copiedText||''};
+    });
+  });
+  for(const r of values)assert.deepEqual(r,{income:0,copied:''});
+});
+test('2025 installment date is consistent in UI, copied summary, PDF and PNG', async page => {
+  await seed(page);await mockPDF(page);await mockCopy(page);
+  const r=await page.evaluate(async()=>{
+    setYear(2025);copySummary();downloadPDF();
+    const original=CanvasRenderingContext2D.prototype.fillText;window.pngText=[];
+    CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.pngText.push(text);return original.call(this,text,...args);};
+    HTMLAnchorElement.prototype.click=function(){};await downloadImage();
+    return {ui:document.getElementById('qtrD2').textContent,copy:window.copiedText,pdf:window.pdfText,png:window.pngText};
+  });
+  assert.equal(r.ui,'Jun 16, 2025');assert.match(r.copy,/Jun 16, 2025/);assert.match(r.pdf,/Jun 16, 2025/);assert.ok(r.png.includes('Jun 16, 2025'));
 });
 test('native PNG download produces a nonempty PNG', async page => {
   await seed(page);

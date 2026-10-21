@@ -4,6 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const { test } = require('node:test');
 
 const html = fs.readFileSync(new URL('../tax-estimator.html', `file://${__filename}`), 'utf8');
 const start = html.indexOf('// ─── TAX DATA');
@@ -91,3 +92,114 @@ plan = tax.getQuarterlyPlan({ currentYearTax: 30000, withholding: 5000, priorYea
 assert.deepEqual([plan.priorYearMultiplier, plan.safeHarborAnnual, plan.annualTarget], [1.1, 22000, 17000]);
 
 console.log('tax-estimator deterministic regression tests: PASS');
+
+function helper(name) {
+  vm.runInContext(extractFunction(name), context);
+  return vm.runInContext(name, context);
+}
+
+test('official 2025/2026 brackets keep Single, HoH and QBI boundaries distinct', () => {
+  // Rev. Proc. 2024-40 section 2.01; 2025-32 sections 4.01, 4.13, 4.26.
+  const endpoints = {
+    2025: {single:[11925,48475,103350,197300,250525,626350],mfj:[23850,96950,206700,394600,501050,751600],hoh:[17000,64850,103350,197300,250500,626350]},
+    2026: {single:[12400,50400,105700,201775,256225,640600],mfj:[24800,100800,211400,403550,512450,768700],hoh:[17700,67450,105700,201750,256200,640600]}
+  };
+  for (const year of [2025,2026]) for (const status of ['single','mfj','hoh']) {
+    assert.equal(JSON.stringify(tax.TAX[year].brackets[status].slice(0,-1).map(row=>row[0])), JSON.stringify(endpoints[year][status]));
+    assert.equal(JSON.stringify(tax.TAX[year].brackets[status].map(row=>row[1])),JSON.stringify([.10,.12,.22,.24,.32,.35,.37]));
+  }
+  assert.equal(JSON.stringify(tax.TAX[2025].stdDed),JSON.stringify({single:15750,mfj:31500,hoh:23625}));
+  assert.equal(JSON.stringify(tax.TAX[2026].stdDed),JSON.stringify({single:16100,mfj:32200,hoh:24150}));
+  assert.equal(tax.getQBIThresholds(2026,'single').threshold,201750);
+  near(helper('marginalTax')(201775,tax.TAX[2026].brackets.single),41024,'Single bracket endpoint');
+  near(helper('marginalTax')(201750,tax.TAX[2026].brackets.hoh),39207,'HoH bracket endpoint');
+});
+test('ordinary Schedule SE $400 threshold is on net earnings, not Schedule C profit', () => {
+  // Schedule SE lines 4a/4c; ordinary method only, no church/farm optional methods.
+  const calc=helper('getSelfEmploymentTax');
+  for(const profit of [0,300,400,400/.9235-.0001]) assert.equal(calc(profit,0,0,'single',tax.TAX[2026].SE).seStandard,0);
+  for(const profit of [400/.9235,400/.9235+.0001,100000]) {
+    const r=calc(profit,0,0,'single',tax.TAX[2026].SE);
+    near(r.seStandard,profit*.9235*.153,'SE at/above threshold');near(r.halfSE,r.seStandard/2,'deductible half');
+  }
+  assert.equal(calc(-100,0,0,'single',tax.TAX[2026].SE).seStandard,0);
+});
+test('SE Social Security uses owner wages; Medicare coordinates combined MFJ wages', () => {
+  const calc=helper('getSelfEmploymentTax'), se=tax.TAX[2026].SE;
+  near(calc(100000,184500,184500,'single',se).seStandard,2678.15,'owner wage cap');
+  near(calc(100000,0,184500,'mfj',se).seStandard,14129.55,'spouse does not use owner SS cap');
+  near(calc(100000,240000,240000,'mfj',se).amedTax,741.15,'combined Medicare');
+  near(calc(100000,240000,240000,'mfj',se).halfSE,1339.075,'half excludes AMED');
+});
+test('2026 QBI minimum requires material participation and $1000 active qualifying QBI', () => {
+  // P.L.119-21 section 70105: new 199A(i), plus express exception in 199A(a).
+  const base={year:2026,status:'single',businessType:'general',taxableBeforeQBI:10000,wages:0,ubia:0,materiallyParticipates:true};
+  for(const qbiBase of [0,999]) near(tax.getQBIDeduction({...base,qbiBase}).deduction,qbiBase*.2,'below active threshold');
+  for(const qbiBase of [1000,1500,2000]) assert.equal(tax.getQBIDeduction({...base,qbiBase}).deduction,400);
+  assert.equal(tax.getQBIDeduction({...base,qbiBase:1000,materiallyParticipates:false}).deduction,200);
+  assert.equal(tax.getQBIDeduction({...base,year:2025,qbiBase:1000}).deduction,200);
+  assert.equal(tax.getQBIDeduction({...base,qbiBase:1000,taxableBeforeQBI:0}).deduction,400,'statutory minimum overrides subsection (a) limit; taxable income itself remains floored at zero');
+  assert.equal(tax.getQBIDeduction({...base,qbiBase:100000,taxableBeforeQBI:300000}).deduction,400,'wage-limited active general business');
+  assert.equal(tax.getQBIDeduction({...base,qbiBase:100000,taxableBeforeQBI:300000,businessType:'sstb'}).deduction,0,'excluded SSTB is not a qualified trade');
+});
+test('QBI applies wage/UBIA phase-in before the overall taxable-income ceiling', () => {
+  // Form 8995-A Part II (business component), Part IV (overall limitation).
+  const base={year:2026,status:'single',businessType:'general',qbiBase:1000000,taxableBeforeQBI:239250,wages:0,ubia:0};
+  assert.equal(tax.getQBIDeduction(base).deduction,47850);
+  assert.equal(tax.getQBIDeduction({...base,wages:40000}).deduction,47850);
+  assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:300000}).deduction,0);
+  assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:300000,ubia:1000000}).deduction,25000);
+  assert.equal(tax.getQBIDeduction({...base,taxableBeforeQBI:239250,businessType:'sstb',wages:40000}).deduction,47850);
+});
+test('QBI base distinguishes S-Corp employer SEP from employee elective deferrals', () => {
+  assert.equal(tax.getQBIBase({isSCorp:true,distribution:50000,retirementDeduction:10000,retirePlanType:'sep'}),40000);
+  assert.equal(tax.getQBIBase({isSCorp:true,distribution:50000,retirementDeduction:10000,retirePlanType:'401k'}),50000);
+});
+test('2026 itemized charitable floor is separate from the 2025 treatment', () => {
+  // P.L.119-21 section 70425, 1040-ES (2026) p.3. Input is otherwise eligible gifts.
+  for(const [year,expected] of [[2025,1000],[2026,500]]) {
+    const r=tax.getItemizedDeduction({year,status:'single',charity:1000,agiProxy:100000});assert.equal(r.charityDeduction,expected);
+  }
+  assert.equal(tax.getItemizedDeduction({year:2026,status:'mfj',charity:400,agiProxy:100000}).charityDeduction,0);
+});
+test('eligible non-itemizer cash gifts are capped and never counted with itemized gifts', () => {
+  // P.L.119-21 section 70424; IRC 170(p); 1040-ES (2026) line 2a.
+  const base={year:2026,status:'single',standardDeduction:16100,itemizedOn:true,itemizedTotal:17000,qualifyingCashGifts:2000};
+  assert.equal(tax.getUsedDeduction(base).usedDeduction,17100);
+  assert.equal(tax.getUsedDeduction(base).usedDeductionMode,'standard');
+  assert.equal(tax.getUsedDeduction({...base,itemizedTotal:18000}).usedDeduction,18000);
+  assert.equal(tax.getUsedDeduction({...base,year:2025}).usedDeduction,17000);
+  assert.equal(tax.getUsedDeduction({...base,status:'mfj',standardDeduction:32200}).usedDeduction,34200);
+});
+test('quarterly safe-harbor mode observes the $1000 balance-due threshold', () => {
+  // Form 1040-ES (2026) lines 12c–15; full annual reserve remains available.
+  const base={status:'single',mode:'safe_harbor',currentYearTax:950,withholding:0};
+  assert.equal(tax.getQuarterlyPlan(base).quarterly,0);
+  assert.equal(tax.getQuarterlyPlan({...base,mode:'full'}).annualTarget,950);
+  assert.equal(tax.getQuarterlyPlan({...base,currentYearTax:1000}).quarterly,225);
+  assert.equal(tax.getQuarterlyPlan({...base,currentYearTax:10000,withholding:9100}).quarterly,0);
+  assert.equal(tax.getQuarterlyPlan({...base,currentYearTax:10000}).quarterly,2250);
+});
+test('prior-year safe harbor requires known AGI and an eligible 12-month return, including zero tax', () => {
+  const base={status:'single',mode:'safe_harbor',currentYearTax:30000,withholding:0,priorYearTotalTax:0,priorYearAGI:0,priorYearEligible:true};
+  assert.equal(tax.getQuarterlyPlan(base).annualTarget,0);
+  assert.equal(tax.getQuarterlyPlan({...base,priorYearEligible:false}).annualTarget,27000);
+  assert.equal(tax.getQuarterlyPlan({...base,priorYearTotalTax:20000,priorYearAGI:''}).annualTarget,27000);
+  assert.equal(tax.getQuarterlyPlan({...base,priorYearTotalTax:20000,priorYearAGI:150001}).annualTarget,22000);
+});
+test('published installment dates include the June 2025 weekend adjustment', () => {
+  // IRS Form 1040-ES (2025) p.3; (2026) p.5.
+  assert.equal(JSON.stringify(helper('getQuarterlyDates')(2025)),JSON.stringify(['Apr 15, 2025','Jun 16, 2025','Sep 15, 2025','Jan 15, 2026']));
+  assert.equal(JSON.stringify(helper('getQuarterlyDates')(2026)),JSON.stringify(['Apr 15, 2026','Jun 15, 2026','Sep 15, 2026','Jan 15, 2027']));
+});
+test('employee-style self-employed deferral compensation subtracts the deductible half of SE', () => {
+  // Pub.560, self-employed compensation/earned income; no employer contribution in this mode.
+  assert.equal(helper('getRetirementPlanContext')({planType:'401k',year:2026,isSCorp:false,grossIncome:20000,netProfit:20000,totalW2:0,sCorpSalary:0,halfSE:1412.955}).compBase401k,18587.045);
+});
+test('S-Corp salary plus employer payroll fits available business profit', () => {
+  const calc=helper('getAffordableSCorpSalary'),se=tax.TAX[2026].SE;
+  for(const available of [0,10000,100000,1000000]) {
+    const salary=calc(available,available,se);
+    near(salary+Math.min(salary,se.wageBase)*.062+salary*.0145,available,'salary budget reconciles');
+  }
+});
