@@ -16,12 +16,6 @@ jobs:
     name: Regression and real exports
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    env:
-      NODE_PATH: ${{ runner.temp }}/release-checks/node_modules
-      TAX_EXPORT_LIB_DIR: ${{ runner.temp }}/release-checks/node_modules
-      IGP_EXPORT_LIB_DIR: ${{ runner.temp }}/export-libs
-      TAX_ARTIFACT_DIR: ${{ runner.temp }}/release-evidence/tax-estimator
-      IGP_ARTIFACT_DIR: ${{ runner.temp }}/release-evidence/income-goal
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -29,6 +23,15 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
+      - name: Configure temporary test paths
+        run: |
+          {
+            echo "NODE_PATH=$RUNNER_TEMP/release-checks/node_modules"
+            echo "TAX_EXPORT_LIB_DIR=$RUNNER_TEMP/release-checks/node_modules"
+            echo "IGP_EXPORT_LIB_DIR=$RUNNER_TEMP/export-libs"
+            echo "TAX_ARTIFACT_DIR=$RUNNER_TEMP/release-evidence/tax-estimator"
+            echo "IGP_ARTIFACT_DIR=$RUNNER_TEMP/release-evidence/income-goal"
+          } >> "$GITHUB_ENV"
       - name: Node regressions
         run: |
           mkdir -p "$RUNNER_TEMP/release-evidence"
