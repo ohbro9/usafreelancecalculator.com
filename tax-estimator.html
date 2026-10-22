@@ -3753,6 +3753,17 @@ function formatImportedIncomeValue(value) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function isPlatformFeeImport(shared) {
+  return ['platform_fee', 'platform'].includes(shared.sourceTool || shared.source);
+}
+
+function getPlatformImportCalendarValue(value, maximum) {
+  if (typeof value !== 'number' &&
+      (typeof value !== 'string' || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()))) return 0;
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 && number <= maximum ? number : 0;
+}
+
 function getSharedAnnualizedAmount(shared) {
   if (!shared || !shared.handoff) return 0;
   const handoff = shared.handoff;
@@ -3760,6 +3771,17 @@ function getSharedAnnualizedAmount(shared) {
   const assumptions = shared.assumptions || {};
   const amount = Math.round((Number(handoff.amount) || 0) * 100) / 100;
   if (!(amount > 0)) return 0;
+  if (isPlatformFeeImport(shared)) {
+    // Toolkit normalized fields are merged across steps and may belong to an
+    // earlier gross/net selection. Only the current Platform Fee handoff and
+    // a valid work calendar can establish its annualized amount.
+    if (handoff.period === 'year') return amount;
+    if (handoff.period === 'month') return Math.round(amount * 12 * 100) / 100;
+    const weeks = getPlatformImportCalendarValue(assumptions.weeksPerYear, 53);
+    const days = handoff.period === 'week' ? 1 : getPlatformImportCalendarValue(assumptions.daysPerWeek, 7);
+    return (handoff.period === 'week' || handoff.period === 'day') && weeks > 0 && days > 0
+      ? Math.round(amount * weeks * days * 100) / 100 : 0;
+  }
   if (handoff.kind === 'pre_tax_after_fees' && normalized.annualPreTaxAfterFees > 0) return normalized.annualPreTaxAfterFees;
   if (normalized.annualGross > 0) return normalized.annualGross;
   if (handoff.period === 'year') return amount;
@@ -3827,6 +3849,10 @@ function buildToolkitImportMeta(shared) {
   appliedAmount = annualized > 0 ? annualized : amount;
   bannerText = 'Imported: ' + fmtSNT(amount) + ' from ' + sourceLabel + ' · ' + label +
     ' (' + getSharedPeriodLabel(period).toLowerCase() + ' ' + kindNote + '). Review the period before relying on this estimate.';
+  if (isPlatformFeeImport(shared) && (period === 'week' || period === 'day')) {
+    bannerText += ' No annual conversion was applied: valid weeks per year (up to 53)' +
+      (period === 'day' ? ' and days per week (up to 7)' : '') + ' are required.';
+  }
   return { incomeMode, amount: appliedAmount, bannerText };
 }
 
@@ -3909,6 +3935,9 @@ function tryToolkitImport() {
       if (shared) {
         updatedAt = shared.updatedAt || 0;
         importMeta = buildToolkitImportMeta(shared);
+        if (importMeta && isPlatformFeeImport(shared) && shared.handoff.kind === 'pre_tax_after_fees') {
+          importMeta.bannerText += ' Platform fees are already deducted; do not deduct them again as business expenses. Existing expenses are unchanged.';
+        }
         if (importMeta && typeof window.UFCToolkit.markImportApplied === 'function') {
           window.UFCToolkit.markImportApplied('tax_estimator', updatedAt);
         }

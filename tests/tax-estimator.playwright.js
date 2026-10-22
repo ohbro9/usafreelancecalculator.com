@@ -166,6 +166,156 @@ test('existing annual worked example and monthly view reconcile', async page => 
   });
   near(a.totalTax, b.totalTax); near(a.takeHome, b.takeHome);
 });
+async function openFiverrHandoff(page, back = false) {
+  if (back) {
+    await Promise.all([
+      page.waitForURL('**/platform-fee-calculator.html#amountSetupCard'),
+      page.getByRole('button', {name:'Back: Platform Fees', exact:true}).click(),
+    ]);
+  } else {
+    await page.goto(new URL('platform-fee-calculator.html', page.url()).href, {waitUntil:'domcontentloaded'});
+  }
+  await page.locator('#chipGroup [data-name="Fiverr"]').click();
+  await page.locator('#amtGross').fill('60000');
+  await page.locator('#amtGross').blur();
+  await page.waitForFunction(() => window.__pfcResult.clientPays === 60000 && window.__pfcResult.youKeep === 48000);
+  assert.equal(await page.locator('#resPlatform').innerText(), '$12,000.00');
+}
+async function sendPlatformHandoff(page, kind) {
+  await page.locator(kind === 'gross' ? '#sntChipClient' : '#sntChipNet').click();
+  await Promise.all([
+    page.waitForURL('**/tax-estimator.html#incomeSetupCard'),
+    page.locator('#sntNextBtn').click(),
+  ]);
+}
+async function assertImportedIncome(page, amount, mode = 'annual', annual = amount) {
+  // Import and its 250ms save must agree; an absent key is a pending save.
+  await page.waitForFunction(({amount, mode, annual}) => {
+    const saved = JSON.parse(localStorage.getItem('fte_v1_state'));
+    return Number(document.getElementById('incomeInput').value.replace(/,/g, '')) === amount &&
+      appState.incMode === mode && window._lastResult?.incomeAnnual === annual &&
+      saved?.incMode === mode && Number(String(saved?.incomeInput).replace(/,/g, '')) === amount;
+  }, {amount, mode, annual}, {timeout:5000});
+  return page.evaluate(() => ({saved:collectState(), result:window._lastResult,
+    banner:document.getElementById('importBannerText').textContent}));
+}
+async function seedIncomingHandoff(page, {period, kind = 'gross', assumptions = {}, sourceTool = 'platform_fee'}) {
+  await page.evaluate(({period, kind, assumptions, sourceTool}) => {
+    // Deliberately inconsistent historical normalized fields reproduce saved
+    // sessions without relying on a tax-input restore or on legacy migration.
+    UFCToolkit.writeSession({version:2, sessionId:'import-regression',
+      updatedAt:Math.max(Date.now(), Number(localStorage.getItem('fte_last_imported_at')) + 1),
+      sourceTool, currentStep:sourceTool,
+      handoff:{amount:kind === 'gross' ? 60000 : 48000, period, kind,
+        label:kind === 'gross' ? 'Client Pays' : 'You Receive (pre-tax)'},
+      normalized:{annualGross:999999, annualPreTaxAfterFees:888888}, assumptions});
+    localStorage.setItem('import-unrelated-setting', 'preserve-me');
+  }, {period, kind, assumptions, sourceTool});
+  await page.reload({waitUntil:'domcontentloaded'});
+}
+for (const kind of ['gross', 'pre_tax_after_fees']) {
+  test(`platform import: fresh ${kind} agrees with the calculation and saved income`, async page => {
+    if (kind !== 'gross') await page.setViewportSize({width:390, height:844});
+    await openFiverrHandoff(page);
+    await sendPlatformHandoff(page, kind);
+    const amount = kind === 'gross' ? 60000 : 48000;
+    const state = await assertImportedIncome(page, amount);
+    assert.match(state.banner, new RegExp(kind === 'gross' ? '\\$60,000.*Client Pays' : '\\$48,000.*You Receive'));
+    assert.match(state.banner, /Review the period/);
+    assert.equal(state.result.expenses, 0); // The import must not deduct the fee again.
+    near(state.result.totalTax, kind === 'gross' ? 12037.19896 : 9271.039168);
+    if (kind !== 'gross') assert.match(state.banner, /fees are already deducted; do not deduct them again/);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    if (kind !== 'gross' && process.env.TAX_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.TAX_ARTIFACT_DIR,'platform-net-import-mobile.png'),fullPage:true});
+  });
+}
+for (const [expenseMode, first] of [['dollar', 'pre_tax_after_fees'], ['pct', 'gross']]) {
+  test(`platform import: switching ${first} preserves saved ${expenseMode} expenses and tax settings`, async page => {
+    await page.evaluate(() => {
+      setYear(2025); setIncMode('monthly');
+      document.getElementById('incomeInput').value = '3000';
+      document.getElementById('filingStatus').value = 'mfj';
+      toggleAdv(); toggleW2(); document.getElementById('w2Input').value = '25000';
+      toggleRetire(); setRetirePlanType('custom'); document.getElementById('retireInput').value = '1000';
+      toggleQBI();
+    });
+    await page.locator(expenseMode === 'pct' ? '#expPctBtn' : '#expDollarBtn').click();
+    await page.locator('#expInput').fill(expenseMode === 'pct' ? '10' : '12000');
+    await page.locator('#expInput').blur(); await frames(page);
+    const settings = await page.evaluate(() => collectState());
+    await page.waitForFunction(expected => {
+      const saved = JSON.parse(localStorage.getItem('fte_v1_state'));
+      return saved && Object.entries(expected).every(([key, value]) => saved[key] === value);
+    }, settings);
+    const withoutIncome = ({incomeInput, incMode, ...rest}) => rest;
+    for (const [index, kind] of [first, first === 'gross' ? 'pre_tax_after_fees' : 'gross', first].entries()) {
+      if (index === 2) { // Reopen a persisted session before switching back.
+        await page.reload({waitUntil:'domcontentloaded'});
+        await page.waitForFunction(() => !!window._lastResult);
+      }
+      await openFiverrHandoff(page, index > 0);
+      await sendPlatformHandoff(page, kind);
+      const amount = kind === 'gross' ? 60000 : 48000;
+      const state = await assertImportedIncome(page, amount);
+      assert.deepEqual(withoutIncome(state.saved), withoutIncome(settings));
+      const expenses = expenseMode === 'pct' ? amount * .1 : 12000;
+      near(state.result.expenses, expenses); near(state.result.netProfit, amount - expenses);
+      assert.match(state.banner, new RegExp(kind === 'gross' ? '\\$60,000.*Client Pays' : '\\$48,000.*You Receive'));
+      if (kind !== 'gross') assert.match(state.banner, /fees are already deducted/);
+    }
+    const finalAmount = first === 'gross' ? 60000 : 48000;
+    await page.reload({waitUntil:'domcontentloaded'});
+    await assertImportedIncome(page, finalAmount);
+    assert.equal(await page.locator('#importBanner').isVisible(), false); // A consumed import is not reapplied.
+  });
+}
+test('platform import: stale toolkit state cannot override gross when Tax Estimator storage is missing', async page => {
+  await openFiverrHandoff(page); await sendPlatformHandoff(page, 'pre_tax_after_fees');
+  await assertImportedIncome(page, 48000);
+  await page.evaluate(() => localStorage.removeItem('fte_v1_state'));
+  await openFiverrHandoff(page, true); await sendPlatformHandoff(page, 'gross');
+  const state = await assertImportedIncome(page, 60000);
+  assert.match(state.banner, /\$60,000.*Client Pays/);
+  assert.equal(await page.evaluate(() => UFCToolkit.readSession().normalized.annualGross), 48000);
+});
+test('platform import: every supported period agrees across banner, field, calculation and storage', async page => {
+  for (const kind of ['gross', 'pre_tax_after_fees']) for (const period of ['year', 'month', 'week', 'day', 'project', 'custom']) {
+    await seedIncomingHandoff(page, {period, kind, assumptions:{weeksPerYear:48, daysPerWeek:5}});
+    const selected = kind === 'gross' ? 60000 : 48000;
+    const multiplier = period === 'week' ? 48 : period === 'day' ? 240 : 1;
+    const amount = selected * multiplier;
+    const state = await assertImportedIncome(page, amount, period === 'month' ? 'monthly' : 'annual', period === 'month' ? amount * 12 : amount);
+    assert.ok(state.banner.includes('$' + selected.toLocaleString('en-US')));
+    if (period === 'week' || period === 'day') assert.ok(state.banner.includes('annualized to $' + amount.toLocaleString('en-US')));
+    if (period === 'project' || period === 'custom') assert.match(state.banner, /Review the period/);
+    assert.equal(await page.evaluate(() => localStorage.getItem('import-unrelated-setting')), 'preserve-me');
+  }
+});
+test('platform import: invalid calendars retain the current amount with a period warning', async page => {
+  for (const [period, assumptions] of [['week', {}], ['day', {}], ['week', {weeksPerYear:'48weeks'}], ['week', {weeksPerYear:54}], ['day', {weeksPerYear:48, daysPerWeek:8}], ['day', {weeksPerYear:0, daysPerWeek:5}]]) {
+    await seedIncomingHandoff(page, {period, kind:'pre_tax_after_fees', assumptions});
+    const state = await assertImportedIncome(page, 48000);
+    assert.match(state.banner, /Review the period/); assert.doesNotMatch(state.banner, /annualized/);
+    assert.match(state.banner, /No annual conversion was applied/);
+    assert.match(state.banner, /fees are already deducted/);
+  }
+});
+test('toolkit import: non-platform normalized and monthly transfers retain their behavior', async page => {
+  await seedIncomingHandoff(page, {sourceTool:'hourly_rate', period:'week', assumptions:{weeksPerYear:48}});
+  let state = await assertImportedIncome(page, 999999);
+  assert.match(state.banner, /Hourly Rate Calculator/); assert.doesNotMatch(state.banner, /fees are already deducted/);
+  await seedIncomingHandoff(page, {sourceTool:'income_goal', period:'month'});
+  await assertImportedIncome(page, 60000, 'monthly', 720000);
+});
+test('toolkit import: legacy v1 annual income still imports without a v2 session', async page => {
+  await page.evaluate(() => localStorage.setItem('usaFreelanceToolkit_v1', JSON.stringify({
+    grossAnnual:70000, source:'hourly', updatedAt:Date.now(), note:'Legacy hourly rate',
+  })));
+  await page.reload({waitUntil:'domcontentloaded'});
+  const state = await assertImportedIncome(page, 70000);
+  assert.match(state.banner, /\$70,000\/yr.*Hourly Rate Calculator/);
+});
+
 test('toolkit handoff uses fresh income and retains gross semantics', async page => {
   await seed(page);
   await page.evaluate(() => {
