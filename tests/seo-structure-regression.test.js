@@ -338,6 +338,12 @@ check('tax viewport allows user-controlled zoom', () => {
   assert.doesNotMatch(viewport, /maximum-scale|user-scalable\s*=\s*no/i);
 });
 const taxGuide = taxHtml.split('<section class="tax-seo-guide"')[1].split('</section>')[0];
+check('tax self-employment guide has one contextual link to the October article', () => {
+  const url = 'https://blog.usafreelancecalculator.com/2026/10/self-employment-tax-calculation-2026.html';
+  const selfEmployment = taxGuide.split('<h2>Self-Employment Tax</h2>')[1].split('</article>')[0];
+  assert.ok(selfEmployment.includes(`href="${url}">2026 self-employment tax calculation guide</a>`));
+  assert.equal(taxHtml.split(`href="${url}"`).length - 1, 1);
+});
 check('tax quarterly guide provides sourced 2026 final-installment context', () => {
   const quarterly = taxGuide.split('<h2>Quarterly Estimated Taxes</h2>')[1].split('</article>')[0];
   const text = normalizeText(quarterly);
@@ -345,8 +351,25 @@ check('tax quarterly guide provides sourced 2026 final-installment context', () 
   assert.match(text, /safe-harbor target can leave tax due/);
   assert.ok(quarterly.includes('href="https://www.irs.gov/pub/irs-pdf/f1040es.pdf"'));
   assert.ok(quarterly.includes('href="https://www.irs.gov/newsroom/tax-relief-in-disaster-situations"'));
+  assert.ok(quarterly.includes('href="https://blog.usafreelancecalculator.com/2026/09/how-to-do-quarterly-taxes-freelancer.html"'));
 });
 const taxFAQ = taxGuide.split('<h2>Freelance Tax FAQ</h2>')[1].split('</article>')[0];
+check('tax FAQ explains separate W-2 inputs and their self-employment tax effect', () => {
+  const answer = taxFAQ.split('<h3>Can I estimate taxes with both W-2 wages and 1099 freelance income?</h3>')[1].split('</p>')[0];
+  const text = normalizeText(answer);
+  assert.match(text, /gross freelance income and business expenses in the main fields/);
+  assert.match(text, /annual W-2 wages separately.*I also have W-2 wages.*Advanced Options/);
+  assert.match(text, /Social Security tax; wages are not treated as self-employment income/);
+});
+check('tax FAQ scopes the 2026 QBI minimum and distinguishes it from a refund', () => {
+  const answer = taxFAQ.split('<h3>Is the 2026 $400 QBI minimum automatic?</h3>')[1].split('</p>')[0];
+  const text = normalizeText(answer);
+  assert.match(text, /No\. It requires at least \$1,000 of qualified business income.*materially participate.*eligibility rules/);
+  assert.match(text, /QBI is not gross receipts or W-2 wages/);
+  assert.match(text, /QBI estimate enabled.*checkbox only if eligible/);
+  assert.match(text, /deduction from taxable income, not a \$400 tax credit or refund/);
+  assert.match(text, /one business and excludes QBI loss carryovers/);
+});
 check('tax FAQ distinguishes 2027 filing from unsupported 2027 income', () => {
   const text = normalizeText(taxFAQ);
   assert.match(text, /Which tax year should I choose when filing in 2027\?/);
