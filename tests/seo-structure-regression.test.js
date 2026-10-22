@@ -319,7 +319,8 @@ check('tax supporting heading: methodology and IRS sources', () => {
   assert.match(taxHtml, /<h2\b[^>]*>[^<]*Methodology (?:&|and) IRS Sources[^<]*<\/h2>/i);
 });
 check('tax shows reviewed date and estimate disclaimer', () => {
-  assert.match(taxHtml, /Last reviewed:\s*(?:<[^>]+>\s*)*September 26, 2026/i);
+  assert.match(taxHtml, /Calculation review:\s*<time datetime="2026-10-21">October 21, 2026<\/time>/);
+  assert.match(taxHtml, /Guide reviewed:\s*<time datetime="2026-10-22">October 22, 2026<\/time>/);
   assert.match(taxHtml, /estimate[^.]{0,120}not tax advice|not tax advice[^.]{0,120}estimate/i);
 });
 check('tax links current IRS sources', () => {
@@ -329,6 +330,31 @@ check('tax links current IRS sources', () => {
 });
 check('tax supporting heading: FAQ', () => {
   assert.match(taxHtml, /<h2\b[^>]*>[^<]*Freelance Tax FAQ[^<]*<\/h2>/i);
+});
+check('tax viewport allows user-controlled zoom', () => {
+  const viewport = metaContent(taxHtml, 'viewport');
+  assert.match(viewport, /width=device-width/);
+  assert.match(viewport, /initial-scale=1\.0/);
+  assert.doesNotMatch(viewport, /maximum-scale|user-scalable\s*=\s*no/i);
+});
+const taxGuide = taxHtml.split('<section class="tax-seo-guide"')[1].split('</section>')[0];
+check('tax quarterly guide provides sourced 2026 final-installment context', () => {
+  const quarterly = taxGuide.split('<h2>Quarterly Estimated Taxes</h2>')[1].split('</article>')[0];
+  const text = normalizeText(quarterly);
+  assert.match(text, /2026 estimated payments.*standard final installment.*January 15, 2027/);
+  assert.match(text, /safe-harbor target can leave tax due/);
+  assert.ok(quarterly.includes('href="https://www.irs.gov/pub/irs-pdf/f1040es.pdf"'));
+  assert.ok(quarterly.includes('href="https://www.irs.gov/newsroom/tax-relief-in-disaster-situations"'));
+});
+const taxFAQ = taxGuide.split('<h2>Freelance Tax FAQ</h2>')[1].split('</article>')[0];
+check('tax FAQ distinguishes 2027 filing from unsupported 2027 income', () => {
+  const text = normalizeText(taxFAQ);
+  assert.match(text, /Which tax year should I choose when filing in 2027\?/);
+  assert.match(text, /Choose 2026.*income earned during 2026.*return filed in 2027/);
+  assert.match(text, /does not estimate taxes on income earned during 2027/);
+});
+check('tax FAQ links its recommended cash-planning destination', () => {
+  assert.match(taxFAQ, /href="budget-planner\.html">Budget Planner<\/a>/);
 });
 
 const appHtml = read('app/index.html');
