@@ -303,7 +303,7 @@ test('platform import: invalid calendars retain the current amount with a period
 test('toolkit import: non-platform normalized and monthly transfers retain their behavior', async page => {
   await seedIncomingHandoff(page, {sourceTool:'hourly_rate', period:'week', assumptions:{weeksPerYear:48}});
   let state = await assertImportedIncome(page, 999999);
-  assert.match(state.banner, /Hourly Rate Calculator/); assert.doesNotMatch(state.banner, /fees are already deducted/);
+  assert.match(state.banner, /from Hourly Rate ·/); assert.doesNotMatch(state.banner, /fees are already deducted/);
   await seedIncomingHandoff(page, {sourceTool:'income_goal', period:'month'});
   await assertImportedIncome(page, 60000, 'monthly', 720000);
 });
