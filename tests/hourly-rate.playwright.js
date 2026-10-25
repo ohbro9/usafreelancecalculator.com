@@ -58,7 +58,7 @@ test('money grammar: bad rate/expense/target text stays visible and cannot becom
 });
 for(const mode of ['fwd','rev'])test(`${mode} invalid state: schedules, zero billable and clearing money invalidate snapshots and every output action`,async p=>{
   if(mode==='rev')await reverse(p);
-  const inputs=mode==='rev'?['hpdR','dpwR','wpyR','billableR','target']:['hpd','dpw','wpy','billable','rate'];
+  const inputs=mode==='rev'?['hpdR','dpwR','wpyR','billableRTxt','target']:['hpd','dpw','wpy','billable','rate'];
   await p.evaluate(()=>{window.__renderCalls=0;window.__copyCalls=0;window.html2canvas=()=>{window.__renderCalls++;return new Promise(()=>{});};window.html2pdf=()=>{window.__renderCalls++;};Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>{window.__copyCalls++;return Promise.resolve();}}});});
   let downloads=0;p.on('download',()=>downloads++);
   for(const id of inputs){
@@ -67,7 +67,7 @@ for(const mode of ['fwd','rev'])test(`${mode} invalid state: schedules, zero bil
     const url=p.url();await p.locator('#ctaBtn').click();await p.waitForTimeout(450);assert.equal(p.url(),url);
     assert.equal(await p.evaluate(()=>__hourlyTest.buildFwdPDF('test')),'');assert.equal(await p.evaluate(()=>__hourlyTest.buildRevPDF('test')),'');
     assert.deepEqual(await p.evaluate(()=>[window.__renderCalls,window.__copyCalls]),[0,0]);assert.equal(downloads,0);
-    await p.evaluate(({id})=>{const defaults={hpd:8,dpw:5,wpy:48,billable:70,rate:50,hpdR:8,dpwR:5,wpyR:48,billableR:70,target:80000};document.getElementById(id).value=defaults[id];__hourlyTest.calc();},{id});
+    await p.evaluate(({id})=>{const defaults={hpd:8,dpw:5,wpy:48,billable:70,rate:50,hpdR:8,dpwR:5,wpyR:48,billableRTxt:70,target:80000};document.getElementById(id).value=defaults[id];__hourlyTest.calc();},{id});
     assert.ok(await p.evaluate(()=>window.__gross.year)>0);
   }
 });
@@ -83,6 +83,13 @@ test('same-frame custom percentage changes use the visible percentage, not a pre
   await p.evaluate(()=>__hourlyTest.setAdv(true));await p.locator('#taxToggleRow').click();
   await p.evaluate(()=>{__hourlyTest.setForwardTaxMode('custom',25);__hourlyTest.calc();document.getElementById('fwdCustomTaxPct').value='33.33';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>Promise.resolve()}});});
   await p.locator('#btnCopy').click();near(await p.evaluate(()=>window.__fwdData.taxR),33.33);near(await p.evaluate(()=>window.__fwdData.annualTaxExact),22397.76);
+});
+test('reverse billable autofill uses the visible field even when no input event fires',async p=>{
+  await reverse(p);await p.evaluate(()=>{document.getElementById('billableRTxt').value='50';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>Promise.resolve()}});});
+  await p.locator('#btnCopy').click();near(await p.evaluate(()=>window.__revData.n2),83.34);
+  assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('hrcSched')).billableR),'50');
+  const payload=await p.evaluate(()=>__hourlyTest.buildHourlyToolkitPayload());
+  assert.equal(payload.assumptions.utilizationPct,50);near(payload.normalized.annualGross,80006.4);
 });
 test('reverse periods and gross/manual/smart after-tax solvers preserve their financial contracts',async p=>{
   await reverse(p);
@@ -132,7 +139,8 @@ for(const kind of ['PNG','PDF'])test(`in-flight ${kind} export cancels if inputs
   await reverse(p);await exportsReady(p);let downloads=0;p.on('download',()=>downloads++);
   await p.evaluate(()=>{window.__renderPending=false;window.html2canvas=()=>new Promise(resolve=>{window.__renderPending=true;window.__releaseRender=()=>{const c=document.createElement('canvas');c.width=10;c.height=10;resolve(c);};});});
   await p.locator(kind==='PNG'?'#btnBreakdown':'#btnPDF').click();await p.waitForFunction(()=>window.__renderPending);
-  await p.locator('#hpdR').fill('0');await frames(p);await p.evaluate(()=>window.__releaseRender());await p.waitForTimeout(700);assert.equal(downloads,0);await assertInvalid(p);
+  if(kind==='PNG')await p.evaluate(()=>document.getElementById('billableRTxt').value='0');else await p.locator('#hpdR').fill('0');
+  await frames(p);await p.evaluate(()=>window.__releaseRender());await p.waitForTimeout(700);assert.equal(downloads,0);await assertInvalid(p);
 });
 for(const [width,mode,taxOn] of [[390,'fwd',false],[390,'rev',false],[1280,'fwd',false],[1280,'rev',false],[1280,'fwd',true],[1280,'rev',true]])test(`actual ${mode} ${taxOn?'after-tax':'gross'} PDF/PNG exports use recovered current inputs at ${width}px`,async p=>{
   assert.ok(process.env.HRC_ARTIFACT_DIR,'HRC_ARTIFACT_DIR is required for export evidence');await p.setViewportSize({width,height:900});if(mode==='rev')await reverse(p);

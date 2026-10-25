@@ -2539,7 +2539,7 @@ function invalidateHourlyResults(message){
     if($('breakdownBtn'))$('breakdownBtn').dataset.body='';
 }
 function validateHourlyInputs(activeMode){
-    var ids=activeMode==='fwd'?['rate','hpd','dpw','wpy','billable','expenses']:['target','hpdR','dpwR','wpyR','billableR'];
+    var ids=activeMode==='fwd'?['rate','hpd','dpw','wpy','billable','expenses']:['target','hpdR','dpwR','wpyR','billableRTxt'];
     if(activeMode==='fwd'&&$('taxChk').checked&&fwdTaxMode==='custom')ids.push('fwdCustomTaxPct');
     if(activeMode==='rev'&&isReverseAfterTaxGoal()&&revTaxMode==='custom')ids.push('revCustomTaxPct');
     var valid=true;
@@ -2551,7 +2551,7 @@ function requireHourlyResult(expectedMode){
     if((expectedMode&&mode!==expectedMode)||!calc()){toast('Enter valid inputs before copying, exporting or continuing.','error');return false;}
     persistScheduleData();return true;
 }
-function hourlyInputStamp(){return JSON.stringify(buildRememberedScheduleData());}
+function hourlyInputStamp(){return JSON.stringify([buildRememberedScheduleData(),$('billableRTxt').value]);}
 function hourlyExportIsCurrent(stamp,expectedMode){
     if(mode===expectedMode&&stamp===hourlyInputStamp())return true;
     calc();persistScheduleData();toast('Inputs changed. Export again with the current values.','error');return false;
@@ -3523,6 +3523,7 @@ function showNet(m,y,mult,exp,taxRate,hpd,dpw,wpy,bill,opts){
 }
 
 function calcRev(){
+    $('billableR').value=$('billableRTxt').value;
     $('revTaxSec').classList.toggle('show',isReverseAfterTaxGoal());
     renderReverseTaxControls(null,isReverseAfterTaxGoal());
     if(!validateHourlyInputs('rev'))return false;
