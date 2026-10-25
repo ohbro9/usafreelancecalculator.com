@@ -31,6 +31,8 @@ jobs:
             echo "IGP_EXPORT_LIB_DIR=$RUNNER_TEMP/export-libs"
             echo "TAX_ARTIFACT_DIR=$RUNNER_TEMP/release-evidence/tax-estimator"
             echo "IGP_ARTIFACT_DIR=$RUNNER_TEMP/release-evidence/income-goal"
+            echo "HRC_EXPORT_LIB_DIR=$RUNNER_TEMP/release-checks/node_modules"
+            echo "HRC_ARTIFACT_DIR=$RUNNER_TEMP/release-evidence/hourly"
           } >> "$GITHUB_ENV"
       - name: Node regressions
         run: |
@@ -38,12 +40,16 @@ jobs:
           node --test tests/*.test.js | tee "$RUNNER_TEMP/release-evidence/node.log"
       - name: Install browser and production export libraries for tests
         run: |
-          npm install --prefix "$RUNNER_TEMP/release-checks" --no-package-lock --ignore-scripts --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 html2canvas@1.4.1
+          npm install --prefix "$RUNNER_TEMP/release-checks" --no-package-lock --ignore-scripts --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 html2canvas@1.4.1 html2pdf.js@0.10.1
           node "$RUNNER_TEMP/release-checks/node_modules/playwright/cli.js" install --with-deps chromium
           mkdir -p "$IGP_EXPORT_LIB_DIR"
           ln -s "$TAX_EXPORT_LIB_DIR/html2canvas/dist/html2canvas.min.js" "$IGP_EXPORT_LIB_DIR/html2canvas.js"
           ln -s "$TAX_EXPORT_LIB_DIR/jspdf/dist/jspdf.umd.min.js" "$IGP_EXPORT_LIB_DIR/jspdf.js"
           node -e 'require("node:fs").appendFileSync(process.env.GITHUB_ENV, "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=" + require("playwright").chromium.executablePath() + "\n")'
+      - name: Hourly Rate input integrity and native exports
+        run: |
+          node tests/hourly-rate.playwright.js | tee "$RUNNER_TEMP/release-evidence/hourly-browser.log"
+          node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/hourly-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Tax Estimator desktop, mobile and native exports
         run: |
           node tests/tax-estimator.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-browser.log"
