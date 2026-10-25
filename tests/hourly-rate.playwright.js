@@ -163,6 +163,8 @@ for(const [width,mode,taxOn] of [[390,'fwd',false],[390,'rev',false],[1280,'fwd'
   assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await p.screenshot({path:path.join(process.env.HRC_ARTIFACT_DIR,`${mode}-${taxOn?'tax':'gross'}-${width}-page.png`),fullPage:true});
 });
 
+require('./hourly-report-cases')({test,near,frames,reverse,exportsReady});
+
 (async()=>{
   const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!file.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}fs.readFile(file,(e,b)=>{if(e){res.writeHead(404);res.end();return;}if(file===path.join(root,'hourly-rate-calculator.html')){if(process.env.HRC_BASELINE_HTML)b=fs.readFileSync(process.env.HRC_BASELINE_HTML);b=b.toString().replace('/* INIT */','window.__hourlyTest={calc,calcFwd,calcRev,buildFwdPDF,buildRevPDF,buildHourlyToolkitPayload,setAdv,setForwardTaxMode,setReverseTaxMode,getHourlySmartTaxModel};\n/* INIT */');}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(b);});});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});let passed=0,failed=0;

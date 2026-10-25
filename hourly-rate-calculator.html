@@ -2261,7 +2261,7 @@ You can set goals per year, month, or week.">What's this?</button>
         <div class="stat-grid">
             <div class="stat"><div class="k">Daily</div><div class="v" id="rDaily">$400</div><div class="t">Selected work profile</div></div>
             <div class="stat"><div class="k">Weekly</div><div class="v" id="rWeekly">$2,000</div><div class="t">Days × daily rate</div></div>
-            <div class="stat"><div class="k">Monthly</div><div class="v" id="rMonthly">$8,000</div><div class="t">Average method only</div></div>
+            <div class="stat"><div class="k">Monthly</div><div class="v" id="rMonthly">$8,000</div><div class="t" id="rMonthlyMethod">Average: Yearly ÷ 12</div></div>
             <div class="stat highlight"><div class="k">Yearly</div><div class="v" id="rYearly">$96,000</div><div class="t">Gross yearly estimate</div></div>
         </div>
     </div>
@@ -2652,7 +2652,7 @@ function goNextFromHourly(){
 function updateSum(o){
     if($('sumRate'))$('sumRate').textContent='$'+o.rate+'/hr';
     if($('sumWeeks'))$('sumWeeks').textContent=o.wpy+' weeks';
-    if($('sumBill'))$('sumBill').textContent=Math.round(o.bill*100)+'% billable';
+    if($('sumBill'))$('sumBill').textContent=o.billPct+'% billable';
     if($('sumTax')){
         if(!o.taxOn)$('sumTax').textContent='Tax off';
         else if(fwdTaxMode==='smart')$('sumTax').textContent='Smart tax';
@@ -3428,7 +3428,7 @@ function calcFwd(){
     if($('taxChk').checked&&fwdTaxMode==='custom')fwdManualTaxPct=readHourlyInput('fwdCustomTaxPct');
     var rate=readHourlyInput('rate');
     var hpd=readHourlyInput('hpd'),dpw=readHourlyInput('dpw'),wpy=readHourlyInput('wpy');
-    var bill=readHourlyInput('billable')/100;
+    var billPct=readHourlyInput('billable'),bill=billPct/100;
     var exp=readHourlyInput('expenses');
     var method=document.querySelector('input[name="fwdM"]:checked').value;
     var d=rate*hpd*bill,w=d*dpw,y=w*wpy;var m=method==='avg'?(y/12):(w*(52/12));
@@ -3460,8 +3460,8 @@ function calcFwd(){
     window.__gross={day:d,week:w,month:m,year:y};updateFwdUI();
     setVal('rDaily',d);setVal('rWeekly',w);setVal('rMonthly',m);setVal('rYearly',y);
     setVal('rateVal',rate,{decimals:2,suffix:'/hr'});
-    $('rateSub').textContent=bill<1?'Based on '+Math.round(bill*100)+'% billable':'Preset-driven estimate with clear earnings visibility.';
-    if(bill<1){$('billBadge').textContent=Math.round(bill*100)+'% Billable';$('billBadge').classList.add('show')}else $('billBadge').classList.remove('show');
+    $('rateSub').textContent=bill<1?'Based on '+billPct+'% billable':'Preset-driven estimate with clear earnings visibility.';
+    if(bill<1){$('billBadge').textContent=billPct+'% Billable';$('billBadge').classList.add('show')}else $('billBadge').classList.remove('show');
     var pn=hpd==8&&dpw==5?'Full-Time':hpd==4&&dpw==3?'Part-Time':hpd==6&&dpw==4?'Mid':hpd+'h·'+dpw+'d';
     $('heroChip1').textContent=pn+' preset';$('heroChip2').textContent=wpy+' weeks/year';$('heroChip3').textContent=method==='avg'?'Average monthly view':'Realistic monthly view';
     renderForwardResultCopy({taxOn:taxOn,exp:exp,taxPctText:taxPctText,taxRate:taxRate,method:method});
@@ -3478,18 +3478,19 @@ function calcFwd(){
         $('afterHourly').textContent='≈ $'+netHourlyAfterTax.toFixed(2)+'/hr '+afterTaxSuffix;$('afterHourly').style.display='block';
         if(exp>0)showNet(m,y,mult,exp,taxRate,hpd,dpw,wpy,bill,{monthlyTax:monthlyTaxRemoved,annualTax:annualTaxRemoved,taxLabel:netNoteLabel});else $('netPills').classList.remove('show');
     }else{$('taxPills').classList.remove('show');$('afterHourly').style.display='none';if(exp>0)showNet(m,y,1,exp,0,hpd,dpw,wpy,bill);else $('netPills').classList.remove('show')}
-    updateSum({rate:rate,wpy:wpy,bill:bill,taxOn:taxOn,taxRate:taxRate,exp:exp});
+    updateSum({rate:rate,wpy:wpy,billPct:billPct,taxOn:taxOn,taxRate:taxRate,exp:exp});
+    $('rMonthlyMethod').textContent=method==='avg'?'Average: Yearly ÷ 12':'Realistic: Weekly × 4.33';
     $('fwdMexpl').textContent=method==='avg'?'Average: Monthly = Yearly ÷ 12':'Realistic: Monthly = Weekly × 4.33';
     var rads=document.querySelectorAll('#fwdMRadios .radio');for(var i=0;i<rads.length;i++)rads[i].classList.toggle('active',rads[i].dataset.val===method);
     var taxLbl=taxOn?taxModeLabel:'OFF';
-    var n='Monthly: <b>'+(method==='avg'?'Yearly ÷ 12':'Weekly × 4.33')+'</b> • Tax: <b>'+taxLbl+'</b> • Billable: <b>'+Math.round(bill*100)+'%</b> • Weeks: <b>'+wpy+'</b>';
+    var n='Monthly: <b>'+(method==='avg'?'Yearly ÷ 12':'Weekly × 4.33')+'</b> • Tax: <b>'+taxLbl+'</b> • Billable: <b>'+billPct+'%</b> • Weeks: <b>'+wpy+'</b>';
     if(exp>0)n+=' • Expenses: <b>$'+exp.toLocaleString()+'/mo</b>';$('note').innerHTML=n;genExpChips();
     /* Store snapshot for PNG report */
     var _mult2=taxOn&&y>0?(yearlyNetAfterTax/y):1;
     var _nm2=Math.round(m*_mult2-exp),_ny2=Math.round(yearlyNetAfterTax-exp*12);
     var _hrs2=totalBillableHours;
     window.__fwdData={
-        rate:rate,hpd:hpd,dpw:dpw,wpy:wpy,billPct:Math.round(bill*100),
+        rate:rate,hpd:hpd,dpw:dpw,wpy:wpy,billPct:billPct,billableHoursYear:totalBillableHours,
         methL:method==='avg'?'Average (Yearly ÷ 12)':'Realistic (Weekly × 4.33)',
         gd:Math.round(d),gw:Math.round(w),gm:Math.round(m),gy:Math.round(y),
         taxMode:fwdTaxMode,taxLabel:taxOn?taxModeLabel:'Tax off',filingStatus:fwdFilingStatus,taxRegion:fwdTaxRegion,
@@ -3501,7 +3502,7 @@ function calcFwd(){
         annualTaxExact:taxOn?roundMoney(annualTaxRemoved):0,quarterlyTaxExact:taxOn&&taxModel?roundMoney(taxModel.quarterlyTax):0,
         netHr:taxOn?netHourlyAfterTax:0,
         exp:exp,netMo:_nm2,netYr:_ny2,
-        netHrEff:(_hrs2>0&&(exp>0||taxOn))?(Math.abs(_ny2)/_hrs2).toFixed(2):'0'
+        netHrEff:(_hrs2>0&&(exp>0||taxOn))?((yearlyNetAfterTax-exp*12)/_hrs2).toFixed(2):'0'
     };
     return true;
 }
@@ -3542,7 +3543,7 @@ function calcRev(){
     // Hide fwd-only panels
     $('taxPills').classList.remove('show');$('netPills').classList.remove('show');$('afterHourly').style.display='none';
 
-    var hpd=readHourlyInput('hpdR'),dpw=readHourlyInput('dpwR'),wpy=readHourlyInput('wpyR'),billR=readHourlyInput('billableR')/100;
+    var hpd=readHourlyInput('hpdR'),dpw=readHourlyInput('dpwR'),wpy=readHourlyInput('wpyR'),billPct=readHourlyInput('billableR'),billR=billPct/100;
     var tgt=readHourlyInput('target');
     var tgtY;if(period==='year')tgtY=tgt;else if(period==='week')tgtY=tgt*wpy;else tgtY=tgt*12;
 
@@ -3579,11 +3580,11 @@ function calcRev(){
     $('revBlueRate').textContent=hrs>0?'$'+n2.toFixed(2)+'/hr':'—';
     var taxPctTextForBlue=formatTaxPctDisplay(taxRate);
     $('revBlueSub').textContent=!isA
-        ?('Based on '+Math.round(billR*100)+'% billable • '+wpy+' weeks/year • '+hpd+'h/day • '+dpw+'d/week')
+        ?('Based on '+billPct+'% billable • '+wpy+' weeks/year • '+hpd+'h/day • '+dpw+'d/week')
         :(revTaxMode==='smart'
-            ?('Required gross output to hit your take-home goal using your smart tax setup • '+Math.round(billR*100)+'% billable • '+wpy+' weeks/year')
-            :('Required gross output to hit your take-home goal after '+taxPctTextForBlue+' tax • '+Math.round(billR*100)+'% billable • '+wpy+' weeks/year'));
-    $('revBillBadge').textContent=Math.round(billR*100)+'% Billable';
+            ?('Required gross output to hit your take-home goal using your smart tax setup • '+billPct+'% billable • '+wpy+' weeks/year')
+            :('Required gross output to hit your take-home goal after '+taxPctTextForBlue+' tax • '+billPct+'% billable • '+wpy+' weeks/year'));
+    $('revBillBadge').textContent=billPct+'% Billable';
 
     var d=n2*hpd*billR,w=d*dpw,y=w*wpy;var m=method==='avg'?(y/12):(w*(52/12));
     if(isA&&revTaxMode==='smart'){
@@ -3628,11 +3629,11 @@ function calcRev(){
         var nh2=Math.round(n2*(1-effectiveTaxRatio)*100)/100;$('revNetHourly').textContent='≈ $'+nh2.toFixed(2)+'/hr '+netSuffix+' (effective net hourly)';
     }
 
-    updateRevSummary(n2,tgtY,billR,wpy,method,isA,taxRate);
+    updateRevSummary(n2,tgtY,billPct,wpy,method,isA,taxRate);
     var afterTaxGoalLabel=revTaxMode==='smart'
         ?('After Tax (Smart '+formatTaxPctDisplay(taxRate)+' • '+getHourlyTaxSetupSummary(revFilingStatus,revTaxRegion)+')')
         :('After Tax ('+formatTaxPctDisplay(taxRate)+')');
-    var note='Monthly: <b>'+(method==='avg'?'Yearly ÷ 12':'Weekly × 4.33')+'</b> • Goal: <b>'+(isA?afterTaxGoalLabel:'Before Tax')+'</b> • Billable: <b>'+Math.round(billR*100)+'%</b>';
+    var note='Monthly: <b>'+(method==='avg'?'Yearly ÷ 12':'Weekly × 4.33')+'</b> • Goal: <b>'+(isA?afterTaxGoalLabel:'Before Tax')+'</b> • Billable: <b>'+billPct+'%</b>';
     $('note').innerHTML=note;
 
     // Store for image download
@@ -3642,7 +3643,7 @@ function calcRev(){
     var netHr2=Math.round(n2*(1-effectiveTaxRatio)*100)/100;
     window.__revData={
       n2:n2,tgtY:tgtY,hpd:hpd,dpw:dpw,wpy:wpy,
-      billPct:Math.round(billR*100),isA:isA,taxR:taxRate,
+      billPct:billPct,billableHoursYear:hrs,isA:isA,taxR:taxRate,
       taxMode:revTaxMode,taxLabel:isA?(revTaxMode==='smart'?('Smart '+formatTaxPctDisplay(taxRate)):formatTaxPctDisplay(taxRate)):'No Tax',
       filingStatus:revFilingStatus,taxRegion:revTaxRegion,
       method:method,methL:methL2,
@@ -3657,10 +3658,10 @@ function calcRev(){
     return true;
 }
 
-function updateRevSummary(rate,goal,bill,wpy,method,isA,taxRate){
+function updateRevSummary(rate,goal,billPct,wpy,method,isA,taxRate){
     $('revSumGoal').textContent=isA?'After-Tax Goal':'Before Tax';
     $('revSumTax').textContent=isA?(revTaxMode==='smart'?'Smart tax':formatTaxPctDisplay(taxRate)+' Tax'):'No Tax';
-    $('revSumBill').textContent=Math.round(bill*100)+'% Billable';
+    $('revSumBill').textContent=billPct+'% Billable';
     $('revSumWeeks').textContent=wpy+' Weeks';
     $('revSumMethod').textContent=method==='avg'?'Average Monthly':'Realistic Monthly';
 }
@@ -3721,6 +3722,7 @@ function persistScheduleData(){
 function applyRememberedScheduleData(saved){
     if(!saved)return;
     if(saved.rate!==undefined)$('rate').value=saved.rate;
+    syncChip('rateChips','r',readHourlyInput('rate'));
     if(saved.hpd!==undefined)$('hpd').value=saved.hpd;
     if(saved.dpw!==undefined)$('dpw').value=saved.dpw;
     if(saved.wpy!==undefined){$('wpy').value=saved.wpy;syncChip('wpyChips','w',saved.wpy)}
@@ -4517,11 +4519,14 @@ function generatePDF(){
       scrollY:0
     }).then(function(canvas){
       if(!hourlyExportIsCurrent(inputStamp,exportMode))return;
+      // Match the captured raster, not rounded DOM scrollHeight. One CSS pixel
+      // of headroom also protects html2pdf's floored pixel slice at page boundaries.
+      var pdfHeight=Math.max(1123,Math.ceil(canvas.height*794/canvas.width)+1);
       return html2pdf().set({
         margin:0,
         filename:(mode==='fwd'?'Hourly-Rate-Report':'Reverse-Rate-Report')+'.pdf',
         image:{type:'jpeg',quality:0.95},
-        jsPDF:{unit:'px',format:[794,Math.max(el?el.scrollHeight:1123,1123)],orientation:'portrait',hotfixes:['px_scaling']},
+        jsPDF:{unit:'px',format:[794,pdfHeight],orientation:'portrait',hotfixes:['px_scaling']},
         pagebreak:{mode:['css']}
       }).from(canvas,'canvas').toPdf().get('pdf').then(function(pdf){
         if(!hourlyExportIsCurrent(inputStamp,exportMode))return;
@@ -4566,8 +4571,8 @@ function buildFwdPDF(dateStr){
   var nd=taxOn?(Number(d.nd)||0):0,nw=taxOn?(Number(d.nw)||0):0,nm=taxOn?(Number(d.nm)||0):0,ny=taxOn?(Number(d.ny)||0):0;
   var td=taxOn?(Number(d.td)||0):0,tw=taxOn?(Number(d.tw)||0):0,tm=taxOn?(Number(d.tm)||0):0,ty=taxOn?(d.annualTaxExact!==undefined?Number(d.annualTaxExact):Number(d.ty)||0):0;
   var am=exp>0?(Number(d.netMo)||0):0,ay=exp>0?(Number(d.netYr)||0):(taxOn?ny:gy);
-  var hrs=hpd*dpw*wpy*bill;
-  var aHr=hrs>0?ay/hrs:0;
+  var hrs=Number(d.billableHoursYear)||0;
+  var aHr=Number(d.netHrEff)||0;
   var fhr=function(v){return(v<0?'-$':'$')+Math.abs(v).toFixed(2)};
   var netHr=taxOn?(Number(d.netHr)||0):0;
   var effHr=Math.round(rate*bill*100)/100;
@@ -4758,7 +4763,6 @@ function buildRevPDF(dateStr){
   var dpw=Number(d.dpw)||0;
   var wpy=Number(d.wpy)||0;
   var billPct=Number(d.billPct)||0;
-  var billRatio=billPct/100;
   var isA=!!d.isA;
   var methL=(d.methL||'Average (Yearly ÷ 12)').replace(/÷/g,'&divide;').replace(/×/g,'&times;');
   var taxR=isA?(Number(d.taxR)||0):0;
@@ -4777,7 +4781,7 @@ function buildRevPDF(dateStr){
   var taxLabelShort=ctx.taxDisplayCompact;
   var taxLabelFull=ctx.taxDisplay;
   var goalDisplay=ctx.goalDisplay;
-  var billableHoursYear=hpd*dpw*wpy*billRatio;
+  var billableHoursYear=Number(d.billableHoursYear)||0;
   var selectedGoalValue=period==='week'?(wpy>0?(tgtY/wpy):0):(period==='month'?(tgtY/12):tgtY);
   var beforeTaxEnteredGoal=period==='year'?(pf(selectedGoalValue)+'/yr'):(period==='month'?(pf(selectedGoalValue)+'/mo'):(pf(selectedGoalValue)+'/wk'));
   var beforeTaxValueLabel='Planning Goal Type';
