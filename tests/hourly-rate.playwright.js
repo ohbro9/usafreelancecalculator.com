@@ -116,12 +116,23 @@ test('baseline smart-tax fixtures, monthly views and reverse expense boundary re
   await reverse(p);const first=await p.evaluate(()=>window.__revData.n2);
   await p.evaluate(()=>{document.getElementById('expenses').value='5000';__hourlyTest.calc();});near(await p.evaluate(()=>window.__revData.n2),first);
 });
+for(const activeMode of ['fwd','rev'])test(`actual ${activeMode} connected-tool navigation transfers current precise gross values`,async p=>{
+  if(activeMode==='rev'){await reverse(p);await p.evaluate(()=>document.querySelector('input[name="period"][value="month"]').checked=true);await p.locator('#target').fill('1,000.50');await p.locator('#gfcChips [data-gfc="month"]').click();}
+  else await p.locator('#rate').fill('1,500.50');
+  await Promise.all([p.waitForURL(u=>u.pathname.endsWith('/platform-fee-calculator.html')),p.locator('#ctaBtn').click()]);
+  await p.waitForFunction(()=>window.__pfcResult?.clientPays>0);
+  const s=await p.evaluate(()=>({session:window.UFCToolkit.readSession(),legacy:JSON.parse(localStorage.getItem('UFC_SHARED')),input:Number(document.getElementById('amtGross').value.replace(/,/g,''))}));
+  const amount=activeMode==='rev'?1001.28:2016672,annual=activeMode==='rev'?12015.36:2016672;
+  near(s.input,amount);near(s.session.handoff.amount,amount);near(s.legacy.selected_value,amount);near(s.session.normalized.annualGross,annual);
+  assert.equal(s.session.handoff.kind,'gross');assert.equal(s.session.sourceTool,'hourly_rate');assert.equal(s.session.handoff.period,activeMode==='rev'?'month':'year');
+});
 test('saved numeric values, cents, invalid state, reset and independent mode settings remain compatible',async p=>{
   await p.evaluate(()=>{localStorage.setItem('hrcSched',JSON.stringify({version:3,activeMode:'rev',rate:1500.5,expenses:1500.5,hpd:8,dpw:5,wpy:48,billable:70,target:1000.5,hpdR:8,dpwR:5,wpyR:48,billableR:70,period:'month',goalType:'before',fwdM:'real',revM:'avg',fwdTax:{mode:'manual',manualTaxPct:25,filingStatus:'mfj',taxRegion:'state_balanced'},revTax:{mode:'manual',manualTaxPct:20,filingStatus:'single',taxRegion:'federal_only'}}));});
   await p.reload();await frames(p);near(await p.evaluate(()=>window.__revData.tgtY),12006);
   await p.locator('#tab1').click();await frames(p);near(await p.evaluate(()=>window.__fwdData.rate),1500.5);near(await p.evaluate(()=>window.__fwdData.exp),1500.5);
   assert.deepEqual(await p.evaluate(()=>[window.__fwdData.taxMode,window.__fwdData.filingStatus,window.__fwdData.taxRegion,window.__fwdData.methL]),['manual','mfj','state_balanced','Realistic (Weekly × 4.33)']);
-  await reverse(p);await p.locator('#target').fill('1,50');await frames(p);await p.reload();await frames(p);assert.equal(await p.locator('#target').inputValue(),'1,50');await assertInvalid(p);
+  await reverse(p);await p.reload();await frames(p);near(Number((await p.locator('#target').inputValue()).replace(/,/g,'')),80000);
+  await p.locator('#target').fill('1,50');await frames(p);await p.reload();await frames(p);assert.equal(await p.locator('#target').inputValue(),'1,50');await assertInvalid(p);
   await p.locator('#btnReset').click();await frames(p);assert.ok(await p.evaluate(()=>window.__gross.year)>0);assert.equal(await p.locator('#target').inputValue(),'80,000');
 });
 test('custom percentages reject malformed and out-of-range text without rewriting it',async p=>{
