@@ -1524,6 +1524,93 @@
         .hourly-guide-link p{margin-top:6px;font-size:13px}
         .hourly-guide-link:hover{border-color:var(--accent2)}
         .hourly-guide-link:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+        /* Featured official tutorial: visually separate from supporting pricing articles. */
+        .hourly-featured-guide{
+            display:grid;
+            grid-template-columns:minmax(0,1fr) minmax(0,300px);
+            align-items:center;
+            gap:22px;
+            margin:22px 0 20px;
+            padding:23px;
+            border:1px solid var(--line);
+            border-left:5px solid var(--accent);
+            border-radius:20px;
+            background:linear-gradient(115deg,rgba(255,145,47,.12),var(--surface-2) 75%);
+        }
+        .hourly-featured-guide-eyebrow{
+            display:inline-block;
+            padding:5px 10px;
+            border:1px solid var(--line);
+            border-radius:999px;
+            background:var(--surface);
+            color:var(--accent2);
+            font-size:10px;
+            font-weight:900;
+            letter-spacing:.1em;
+            text-transform:uppercase;
+        }
+        .hourly-featured-guide h2{
+            margin:11px 0 9px;
+            color:var(--text);
+            font-size:clamp(21px,2.5vw,29px);
+            line-height:1.2;
+            letter-spacing:-.025em;
+        }
+        .hourly-featured-guide p{
+            margin:0 0 13px;
+            max-width:690px;
+            color:var(--muted);
+            font-size:14px;
+            line-height:1.65;
+        }
+        .hourly-featured-guide-benefits{
+            display:flex;
+            flex-wrap:wrap;
+            gap:7px;
+            margin:0 0 16px;
+        }
+        .hourly-featured-guide-benefits span{
+            border:1px solid var(--line);
+            border-radius:99px;
+            background:var(--surface);
+            padding:6px 9px;
+            color:var(--text);
+            font-size:11px;
+            font-weight:750;
+        }
+        .hourly-featured-guide-action{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:9px;
+            min-height:44px;
+            padding:11px 17px;
+            border-radius:11px;
+            color:#fff;
+            background:linear-gradient(115deg,var(--accent),var(--accent2));
+            font-size:13px;
+            font-weight:850;
+            text-decoration:none;
+            box-shadow:0 8px 17px rgba(176,81,11,.16);
+        }
+        .hourly-featured-guide-action:hover{filter:brightness(1.06)}
+        .hourly-featured-guide-action:focus-visible{outline:3px solid var(--text);outline-offset:4px}
+        .hourly-featured-guide-media{
+            display:block;
+            padding:9px;
+            overflow:hidden;
+            border:1px solid var(--line);
+            border-radius:15px;
+            background:var(--surface);
+            box-shadow:0 9px 20px rgba(12,35,69,.08);
+        }
+        .hourly-featured-guide-media img{display:block;width:100%;height:auto;border-radius:9px}
+        @media(max-width:760px){
+            .hourly-featured-guide{grid-template-columns:1fr;gap:14px;padding:17px}
+            .hourly-featured-guide h2{font-size:23px}
+            .hourly-featured-guide-media{max-width:490px}
+        }
+
         .hourly-seo-links a{
             display:inline-flex;
             align-items:center;
@@ -2057,6 +2144,23 @@ You can set goals per year, month, or week.">What's this?</button>
     <div class="hourly-seo-shell">
         <h2>How to Calculate Your Freelance Hourly Rate</h2>
         <p>Start with the time you can realistically sell to clients rather than treating every working hour as billable. The calculator above combines your hourly rate, hours per day, days per week, weeks per year, and billable percentage to estimate earning capacity. Reverse mode uses the same work-capacity inputs to estimate the rate needed for a chosen income target.</p>
+
+        <aside class="hourly-featured-guide" aria-labelledby="hourly-featured-guide-title">
+            <div>
+                <span class="hourly-featured-guide-eyebrow">Official calculator walkthrough</span>
+                <h2 id="hourly-featured-guide-title">New to this calculator? Follow the complete step-by-step guide.</h2>
+                <p>Learn both Hourly Rate → Earnings and Income Goal → Hourly Rate with actual $75/hour and $6,000/month examples. See billable-time settings, Smart Tax, expenses, and original PDF/PNG reports.</p>
+                <div class="hourly-featured-guide-benefits" aria-label="Guide includes">
+                    <span>Real calculator screenshots</span>
+                    <span>Normal + Reverse modes</span>
+                    <span>Free PDF &amp; PNG examples</span>
+                </div>
+                <a class="hourly-featured-guide-action" href="https://blog.usafreelancecalculator.com/2026/10/how-to-use-freelance-hourly-rate-calculator.html">Read the complete tutorial <span aria-hidden="true">↗</span></a>
+            </div>
+            <a class="hourly-featured-guide-media" href="https://blog.usafreelancecalculator.com/2026/10/how-to-use-freelance-hourly-rate-calculator.html" aria-label="Open the official USA Freelance Calculator hourly rate tutorial">
+                <img src="assets/guides/hourly-rate-2026/02-normal-gross-results.webp" alt="Example hourly rate results: $75 per hour and $100,800 in projected annual gross revenue." width="1486" height="590" loading="lazy" decoding="async">
+            </a>
+        </aside>
 
         <div class="hourly-seo-related" aria-labelledby="hourly-guides-title">
             <h2 id="hourly-guides-title">Freelance Pricing Guides</h2>
