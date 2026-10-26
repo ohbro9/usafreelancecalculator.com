@@ -4264,6 +4264,7 @@ function getReverseManualPct(){
   return clampTaxPctValue(revManualTaxPct);
 }
 function resetPlatformTaxStateScaffold(){
+  ['fwdCustomTaxPct','revCustomTaxPct'].forEach(id=>{if($(id)){$(id).value='25';$(id).dataset.nativeInvalid='false';$(id).dataset.invalidReserve='false';}});
   applySharedAnnualTaxProfileToLegacyMirrors(resetPlatformAnnualTaxProfile());
   const fwdDefaults=defaultPlatformForwardTaxState();
   const revDefaults=defaultPlatformReverseTaxState();
@@ -5803,6 +5804,7 @@ document.querySelectorAll('#customFeeChips .wd-chip').forEach(c=>{
   c.addEventListener('click',function(){
     document.querySelectorAll('#customFeeChips .wd-chip').forEach(x=>x.classList.remove('active'));
     this.classList.add('active');
+    document.getElementById('customFeeInput').dataset.nativeInvalid='false';
     document.getElementById('customFeeInput').value=this.dataset.cf;
     calc();
   });

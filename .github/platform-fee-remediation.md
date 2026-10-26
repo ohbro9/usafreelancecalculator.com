@@ -187,11 +187,11 @@ and 4,000 Smart inverse cases. Candidate rounding adds 10,004 rational half-up c
 four explicit boundary samples). The candidate loop is independently checked to build only two tax
 summaries for setup and the winning high-rate solution.
 
-Platform browser suite: 45 cases (21 prior + 24 second-round), 0 failed/skipped. It covers both modes,
+Platform browser suite: 47 cases (21 prior + 26 second-round), 0 failed/skipped. It covers both modes,
 light/dark document layout, 1366×768 / 390×844 / 360×800, actual Hourly→Platform→Tax expense-preserving
 navigation, native keyboard sequences, unsupported-complete-exponent reload protection, all-chart assertions, explicit zero behavior, cancellation, and
 performance. Original caret desktop and Pixel 7 emulation pass; Hourly 61, Tax 45, Income Goal 20 pass.
-These total 171 browser cases plus two caret profiles; mathematical loops are not additional browser cases.
+These total 173 browser cases plus two caret profiles; mathematical loops are not additional browser cases.
 Fresh downloads: eight standard/comparison PNGs and four two-page A4 PDFs from the original four export
 states, plus two actual Custom-25% comparison PNGs (forward/reverse). All output stays outside the checkout.
 Both preview PDF pages and a Custom-25% comparison PNG were visually inspected; page 2 now displays
@@ -229,3 +229,9 @@ rejected live but serialized as a valid decimal for Custom/processor rates. Acti
 pass full raw grammar before coercion; invalid raw syntax is persisted as invalid, including hidden
 controls. Two genuine-keyboard/reload browser regressions fail on the earlier correction and pass
 on the final head. This closes a related R1 serialization hole without allowing exponent notation.
+
+R1 recovery regression checks additionally verified explicit Reset/Clean Slate discard incomplete
+reserve edits and restore the reserve defaults, while a Custom fee quick pick replaces its incomplete
+edit. Both checks failed before correction: native badInput protection had preserved discarded reserve
+text and the quick pick had not cleared the invalid marker. Reset now explicitly assigns its 25%
+reserve defaults (clearing browser badInput), and the fee quick pick clears only its own old marker.

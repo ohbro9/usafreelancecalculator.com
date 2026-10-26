@@ -179,6 +179,15 @@ for(const field of ['customFeeInput','prPct'])test(`Round 2 R1 unsupported compl
  const input=p.locator('#'+field);await input.fill('');await input.pressSequentially('1e-3');assert.equal(await input.evaluate(e=>e.validity.badInput),false);assert.equal(await result(p),null);await p.reload();assert.equal(await result(p),null,'unsupported exponent must not be serialized as a valid decimal');
  if(field==='prPct')await p.locator('details').first().evaluate(e=>e.open=true);await p.locator('#'+field).fill('0');assert.ok(await result(p));
 });
+test('Round 2 R1 explicit Reset and Clean Slate clear discarded reserve input errors',async p=>{
+ for(const reset of ['resetBtn','presetClean']){
+  await p.locator('#fwdTaxChips [data-mode="custom"]').click();await p.locator('#fwdCustomTaxPct').fill('');await p.locator('#fwdCustomTaxPct').pressSequentially('1e');assert.equal(await result(p),null);
+  await p.locator('#'+reset).click();assert.ok(await result(p));await p.locator('#fwdTaxChips [data-mode="custom"]').click();assert.ok(await result(p),reset+' must restore the reserve default, not a discarded native edit');
+ }
+});
+test('Round 2 R1 explicit Custom fee quick pick replaces an invalid native edit',async p=>{
+ await custom(p,12);await p.locator('#customFeeInput').fill('');await p.locator('#customFeeInput').pressSequentially('1e');assert.equal(await result(p),null);await p.locator('#customFeeChips [data-cf="12"]').click();assert.equal((await result(p))?.youKeep,880);
+});
 test('Round 2 R2 all chart legends and segments share canonical composition',async p=>{
  await custom(p,12);
  for(const mode of ['client','net'])for(const tax of ['off','manual','smart'])for(const goal of (mode==='net'?['before_tax','after_tax']:['before_tax'])){
