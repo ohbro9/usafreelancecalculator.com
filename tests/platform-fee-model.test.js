@@ -80,3 +80,32 @@ test('PFC Smart inverse quotes match 4,000 exhaustive rational-tax oracle minima
   for(let target=1;target<=2000;target++)assert.equal(Math.round(call('solveChargeForAfterTaxKeepTarget',target/100,s).gross*100),first.get(target));
  }
 });
+test('Round 2 R4 zero before/after-reserve targets ignore positive-transaction work bounds',()=>{
+ for(const mode of ['off','manual','smart']){
+  vm.runInContext(`revTaxMode='${mode}';revManualTaxPct=25`,ctx);call('setPlatformAnnualTaxProfile',{annualIncome:96000,annualExpenses:16000});
+  for(const patch of [{},{procOn:true,prFix:1800},{procOn:true,prFix:1e8},{withdrawal:2000},{withdrawal:1e8}])for(const after of [false,true]){
+   const r=call('solvePlatformTarget',0,settings(.1,patch),after);assert.equal(r.solvable,true);assert.equal(r.gross,0);assert.equal(r.netAfterFees,0);if(after)assert.equal(r.taxSummary.finalTakeHome,0);
+  }
+ }
+ vm.runInContext("revTaxMode='smart'",ctx);call('setPlatformAnnualTaxProfile',{annualIncome:null});assert.equal(call('solvePlatformTarget',0,combined,true).solvable,false);
+});
+test('Round 2 R7 cached exact candidate arithmetic agrees with rational rounding',()=>{
+ let seed=8265;const next=()=>{seed=(1664525*seed+1013904223)>>>0;return seed};
+ for(let i=0;i<10000;i++){
+  const n=next()*2,units=next(),den=(next()%1000000000)+1;
+  const expected=Number((2n*BigInt(n)*BigInt(units)+BigInt(den))/(2n*BigInt(den)));
+  assert.equal(call('platformRoundedProduct',n,units,den),expected);
+ }
+ for(const [n,u,d] of [[8999999999,1000000,1000000],[9999999999,1,1000000],[12345,333333,1000000],[999999,999,999999999]])assert.equal(call('platformRoundedProduct',n,u,d),Number((2n*BigInt(n)*BigInt(u)+BigInt(d))/(2n*BigInt(d))));
+});
+test('Round 2 R7 high-rate scan builds tax summaries only for setup and winning quote',()=>{
+ vm.runInContext("revTaxMode='manual';revManualTaxPct=98.9999",ctx);
+ const original=ctx.getReverseTaxCalcSummary;let summaries=0;ctx.getReverseTaxCalcSummary=(...args)=>{summaries++;return original(...args)};
+ try{const t=performance.now();const r=call('solvePlatformTarget',1,settings(.989999),true);console.log('HIGH_RATE_SOLVE_MS '+(performance.now()-t).toFixed(3));assert.equal(r.gross,9948.51);assert.equal(r.taxSummary.finalTakeHome,1);assert.equal(summaries,2);}finally{ctx.getReverseTaxCalcSummary=original;}
+});
+test('Round 2 R9 candidate budget counts both endpoints exactly',()=>{
+ assert.equal(call('platformCandidateCountAllowed',0,199999),true);
+ assert.equal(call('platformCandidateCountAllowed',0,200000),false);
+ assert.equal(call('platformCandidateCountAllowed',1000,200999),true);
+ assert.equal(call('platformCandidateCountAllowed',1,0),false);
+});

@@ -137,3 +137,89 @@ legacy session restoration and accessible name/focus behavior with assistive tec
 Branch changes are intended for an unmerged Draft PR. **Do not merge or deploy without the owner’s
 approval.** API/network access limitations and the final push/PR outcome are recorded in the delivery
 report; this document does not assert that a remote PR exists.
+
+## Second-round independent-review corrections (Master Task 01D)
+
+Reviewed input: PR #47, head `07a8e1166d7550d7a84863e2500e7bea0e0ba75e`.
+The branch and open/Draft PR still pointed to that exact commit before editing. The compact independent
+review archive matched all 65 supplied manifest hashes; its reports/evidence are reference material,
+not authority to merge/deploy. This section supersedes overbroad first-round verification claims above.
+In particular, the first-round chart test checked only the first PNG chart and missed the PDF error;
+exports validated at click time but lacked completion-time validation. Those were real defects.
+
+### Finding matrix
+
+All source functions below are in platform-fee-calculator.html except R6. `M` and `B` retain the
+file aliases above. `CI` = tests/ci-failure-propagation.test.js. Each finding was reproduced through
+fresh keyboard/browser/source probes or the original workflow pipeline before its correction. The
+new Round 2 browser assertions all failed against the reviewed source (20 cases before the additional
+performance and inactive-mode checks were added). Baseline evidence stays outside the checkout.
+
+| Review ID | Root cause / source | Correction | Before → after verification | Final status / remaining limit |
+|---|---|---|---|---|
+| R1 (P1) | platformValidationMessage, custom reserve setters, numeric blur: native number controls expose partial `-`, `1e`, `1e-` as empty value with badInput=true, then Number('')/render/defaults converted it to zero | Check active native badInput/persisted invalid marker before preview, coercion or mutation; protect reserve setters/renderers/blur; retain invalid flags through reload and inactive-mode transitions; explicit correction/presets clear the relevant flag | B Round 2 R1 real keyboard sequences on Custom/processor/forward/reverse reserve, downstream actions blocked, blur/reload/zero recovery; inactive invalid reserve survives mode switches. Previously successful 0%-like state, now null result and alert | FIXED AND VERIFIED in Chromium; raw native partial text cannot be serialized, so reload retains an invalid empty field and requires correction; no screen-reader certification |
+| R2 (P2) | renderPremiumPdfHtml independently recomputed reverse target/gross as green share, while also displaying reserve | PDF legend/segment geometry use canonical keepPct, matching standard PNG and the reconciled ledger | B R2 covers both modes, off/manual/Smart, before/after goals; actual capture assertions inspect every chart, including PDF. 12% before-tax preview 88+12+22=122% → 66+12+22=100%; both PDF pages visually inspected | FIXED AND VERIFIED; printed shares can differ from 100 by display rounding only |
+| R3 (P2) | renderComparisonShareTemplate retained RECOMMENDED PLATFORM and generic footer, omitting the specific talent-rate/client-invoice distinction | Neutral modeled-scenario wording; standalone PNG contains contract/tier/payment-method and talent-set-rate vs separate client-pricing caveats, unmodeled minimums/tiers and unverified presets | B R3/R8 checks text plus actual forward/reverse Custom-25% PNG downloads; visual inspection confirms caveat and monetary differences | FIXED AND VERIFIED for reviewed surfaces; fee presets remain illustrative, not researched provider invoices |
+| R4 (P2) | solvePlatformTarget applied positive-transaction fixed-cost interval/work limit before evaluating gross zero | Validate target/settings/tax setup first, then return the actual zero-gross scenario and applicable reserve summary before deriving the positive-target interval | M zero target with $1,800/$100m processing, $2,000/$100m withdrawal across off/manual/ready Smart, before/after reserve; missing Smart stays invalid. B R4 actual zero UI and setup checks. Previously unsolvable despite valid zero → gross/fees/reserve/payout all zero | FIXED AND VERIFIED; zero-payout handoff remains blocked as intended |
+| R5 (P2) | PNG/PDF entry validated only at click time; awaited libraries/canvas/blob then finalized stale data | Calculation revision/signature captured before awaits; all three formats check unchanged revision and valid current result after loading and immediately before download; changed-away-and-back also changes revision. PDF captures have separate DOM mounts to avoid concurrent overwrite | B R5 controls delayed real canvas capture and library readiness, changes to both -100 and valid 1100, awaits completion and verifies no download plus cancellation feedback (12 cases). Genuine unchanged exports still download | FIXED AND VERIFIED for tested timing paths; cancellation avoids stale downloads, not a guarantee of instant abort of canvas work already underway |
+| R6 (P2) | bash -e without pipefail let tee return zero after failed Node/caret process | Explicit shell bash and set -euo pipefail in every run block; artifact always-upload retained | CI regression extracts all six piped test invocations, runs deliberately failing children with matching shell guards, verifies nonzero status and preserved logs. Old failing child pipeline exited 0; corrected pipelines fail. Nested Node runner context is removed so its intentional failing test actually executes | FIXED AND VERIFIED locally; hosted run outcome recorded separately in PR delivery |
+| R7 (P2) | solvePlatformTarget rebuilt full annual/profile/tax summaries and financial scenario objects per cent candidate | Cache invariant tax/profile/rate cents; exact integer half-up candidate arithmetic uses safe-integer quotient/remainder or BigInt fallback; build full public objects only for winning quote | M 10k exact-product checks and two-summary call-count check; existing and independent minimum oracles remain green. Same source probe extreme 98.9999% fee/reserve, $1 target: 2177ms → 61.7ms, same $9948.51 minimum. Full Chromium calc measured 9.1–16.8ms, input interaction 34ms in a representative run; ordinary calc 2.5–5.6ms/input31ms | FIXED AND VERIFIED for measured workloads. At most 200,000 candidates; wall time remains hardware/JIT/load dependent, not a physical-phone or universal latency bound |
+| R8 (P3) | getComparisonExportData sorted seven rows then slice(0,6) dropped current Custom | Retain all valid rows in comparison image | B R3/R8 verifies forward/reverse seventh-ranked Custom-25% row, current marker and zero current delta; actual PNG includes seven rows | FIXED AND VERIFIED; unsupported scenarios may still be omitted by the existing validity policy |
+| R9 (P3) | last-first>200000 ignored inclusive endpoint count | platformCandidateCountAllowed enforces last-first+1<=200000, validates safe integer endpoints | M R9 verifies exactly 200000 accepted and 200001 rejected, including shifted bounds; all positive-target minima preserved | FIXED AND VERIFIED; no supported quoted value intentionally changed by this boundary correction |
+
+### Second-round validation and evidence
+
+Local test commands (export variables as in CI / the prepared environment):
+
+```bash
+node --test tests/*.test.js
+node tests/platform-fee-remediation.playwright.js
+# Start an isolated static server first, then set PFC_BASE_URL for this caret invocation.
+node tests/platform-fee-caret.playwright.js
+node tests/hourly-rate.playwright.js
+node tests/tax-estimator.playwright.js
+node tests/income-goal-planner.playwright.js
+```
+
+Node: 75 passed, 0 failed/skipped (70 prior tests, four additional model tests, one CI propagation test).
+The prior independent-cent sweep tests still execute 1,000,000 forward, 10,000 before-tax, 8,000 manual,
+and 4,000 Smart inverse cases. Candidate rounding adds 10,004 rational half-up checks (10,000 generated,
+four explicit boundary samples). The candidate loop is independently checked to build only two tax
+summaries for setup and the winning high-rate solution.
+
+Platform browser suite: 43 cases (21 prior + 22 second-round), 0 failed/skipped. It covers both modes,
+light/dark document layout, 1366×768 / 390×844 / 360×800, actual Hourly→Platform→Tax expense-preserving
+navigation, native keyboard sequences, all-chart assertions, explicit zero behavior, cancellation, and
+performance. Original caret desktop and Pixel 7 emulation pass; Hourly 61, Tax 45, Income Goal 20 pass.
+These total 169 browser cases plus two caret profiles; mathematical loops are not additional browser cases.
+Fresh downloads: eight standard/comparison PNGs and four two-page A4 PDFs from the original four export
+states, plus two actual Custom-25% comparison PNGs (forward/reverse). All output stays outside the checkout.
+Both preview PDF pages and a Custom-25% comparison PNG were visually inspected; page 2 now displays
+66/12/22/0, and the image retains the seventh current Custom row and visible standalone caveat.
+
+The supplied independent-review harnesses were rerun without changing their mathematical oracles,
+with only input/output paths adapted to external temporary directories: 600,024 forward cases (0 mismatches),
+6,000 exhaustive small inverses (0 mismatches), 27 larger rational-reference inverses (27 pass),
+39 reconstructed annual cases (39 pass), all eight mandatory examples and original three nonminimum
+counterexamples pass. Separate Python Decimal oracles: 288 profiles / 1,440 component assertions and
+192 reserve allocations / 960 component assertions, all zero failures. These overlap in purpose and are
+not additive unique real-world tax returns.
+
+Environment: Node 24.19.0, Chromium 154.0.8037.57, Playwright 1.62.1 on Linux. The execution sandbox
+changed to restrict loopback sockets during work; browser/HTTP checks ran with approved execution
+permissions. An initial socket EPERM was infrastructure, not a product test result. The exact CI Node
+command was also rerun outside the restricted process sandbox. The propagation regression caught and
+corrected inherited NODE_TEST_CONTEXT affecting its nested intentionally failing runner; it now tests
+actual child failure rather than accepting a superficial zero exit.
+
+The independent review retrieved official IRS 2026 sources, resolving its own fresh-source verification
+scope; that does not turn Smart into a complete tax return. No annual tax methodology or rate schedule
+was changed in this second round. QBI/wage coordination/credits/withholding/safe harbors and named-state
+laws remain outside the reserve model. Raster PDF content, physical printing/devices, Firefox/WebKit,
+screen readers and storage-denied browsers remain unverified. This is local/hosted-branch evidence,
+not production verification. Independent re-review of the exact new commit remains recommended.
+
+Changed files this round: platform-fee-calculator.html; tests/platform-fee-model.test.js;
+tests/platform-fee-remediation.playwright.js; tests/ci-failure-propagation.test.js;
+.github/workflows/pr-validation.yml; this engineering report. Existing PR #47 must remain Draft.
+No merge, deployment, website/Pages/domain settings, Blogger/article or SEO work is authorized.

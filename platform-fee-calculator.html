@@ -2835,7 +2835,7 @@
           <div class="pfc-best-left">
             <div class="pfc-icon-box">🏆</div>
             <div>
-              <div class="pfc-best-eyebrow">Recommended Platform</div>
+              <div class="pfc-best-eyebrow">Modeled Scenario Leader</div>
               <div id="bestBannerText" class="pfc-best-text"></div>
             </div>
           </div>
@@ -4372,7 +4372,7 @@ function setForwardTaxMode(mode,pct){
   }else{
     setForwardTaxState({mode:'manual',manualTaxPct:pct});
   }
-  if($('fwdCustomTaxPct')&&$('fwdCustomTaxPct').dataset.invalidReserve!=='true')$('fwdCustomTaxPct').value=String(getForwardManualPct());
+  if($('fwdCustomTaxPct')&&!platformNativeInputInvalid($('fwdCustomTaxPct'))&&$('fwdCustomTaxPct').dataset.invalidReserve!=='true')$('fwdCustomTaxPct').value=String(getForwardManualPct());
   const model=getForwardTaxPreviewModel();
   syncForwardTaxUiToLegacy(model);
   renderForwardTaxControls(model);
@@ -4405,7 +4405,7 @@ function renderForwardTaxControls(model){
       chip.classList.toggle('active',isActive);
     });
   }
-  if($('fwdCustomTaxPct')&&$('fwdCustomTaxPct').dataset.invalidReserve!=='true')$('fwdCustomTaxPct').value=String(getForwardManualPct());
+  if($('fwdCustomTaxPct')&&!platformNativeInputInvalid($('fwdCustomTaxPct'))&&$('fwdCustomTaxPct').dataset.invalidReserve!=='true')$('fwdCustomTaxPct').value=String(getForwardManualPct());
   if($('fwdTaxCustomWrap'))$('fwdTaxCustomWrap').classList.toggle('show',fwdTaxMode==='custom');
   if($('fwdTaxAssumptionsBtn')){
     $('fwdTaxAssumptionsBtn').hidden=fwdTaxMode!=='smart';
@@ -4546,7 +4546,7 @@ function setReverseTaxMode(mode,pct){
   }else{
     setReverseTaxState({mode:'manual',manualTaxPct:pct});
   }
-  if($('revCustomTaxPct')&&$('revCustomTaxPct').dataset.invalidReserve!=='true')$('revCustomTaxPct').value=String(getReverseManualPct());
+  if($('revCustomTaxPct')&&!platformNativeInputInvalid($('revCustomTaxPct'))&&$('revCustomTaxPct').dataset.invalidReserve!=='true')$('revCustomTaxPct').value=String(getReverseManualPct());
   const model=getReverseTaxPreviewModel();
   syncReverseTaxUiToLegacy(model);
   renderReverseTaxControls(model);
@@ -4577,7 +4577,7 @@ function renderReverseTaxControls(model){
       chip.classList.toggle('active',isActive);
     });
   }
-  if($('revCustomTaxPct')&&$('revCustomTaxPct').dataset.invalidReserve!=='true')$('revCustomTaxPct').value=String(getReverseManualPct());
+  if($('revCustomTaxPct')&&!platformNativeInputInvalid($('revCustomTaxPct'))&&$('revCustomTaxPct').dataset.invalidReserve!=='true')$('revCustomTaxPct').value=String(getReverseManualPct());
   if($('revTaxCustomWrap'))$('revTaxCustomWrap').classList.toggle('show',revTaxMode==='custom');
   if($('revTaxAssumptionsBtn')){
     $('revTaxAssumptionsBtn').hidden=revTaxMode!=='smart';
@@ -4708,6 +4708,7 @@ function save(){
   try{
     localStorage.setItem('pfcState',JSON.stringify({
       mode,
+      invalidNumericInputs:Array.from(document.querySelectorAll('#pfcApp input[type=number]')).filter(input=>platformNativeInputInvalid(input)).map(input=>input.id),
       importContext:_toolkitImportState,
       amtGross:$('amtGross').value,
       amtNet:$('amtNet').value,
@@ -4761,6 +4762,7 @@ function load(){
       syncProc();updateCards();
       return;
     }
+    (Array.isArray(s.invalidNumericInputs)?s.invalidNumericInputs:[]).forEach(id=>{if($(id)){$(id).dataset.nativeInvalid='true';$(id).value='';}});
     // SAVED STATE EXISTS → Load it
     mode=s.mode==='net'?'net':'client';
     _toolkitImportState=eligiblePlatformImport(s.importContext)?s.importContext:null;
@@ -4807,6 +4809,7 @@ function load(){
     renderReverseTaxControls();
     $('taxSection').style.display='none';
     $('seTaxSection').style.display=$('seTaxToggle').checked?'block':'none';
+    (Array.isArray(s.invalidNumericInputs)?s.invalidNumericInputs:[]).forEach(id=>{if($(id))$(id).value='';});
     syncProc();updateCards();
   }catch(e){}
 }
@@ -4834,6 +4837,7 @@ document.querySelectorAll('.wd-chip[data-wd]').forEach(c=>{
     }
     document.querySelectorAll('.wd-chip[data-wd]').forEach(x=>x.classList.remove('active'));
     this.classList.add('active');
+    $('withdrawalFee').dataset.nativeInvalid='false';
     $('withdrawalFee').value=this.dataset.wd;
     calc();
   });
@@ -4894,6 +4898,22 @@ function computeClientScenario(gross, settings){
 
 // Separate component rounding is nonmonotonic. Scan the full bounded rounding-error
 // interval around the continuous inverse, rather than binary-searching cent payouts.
+function platformCandidateCountAllowed(first,last){
+  return Number.isSafeInteger(first)&&Number.isSafeInteger(last)&&last>=first&&last-first+1<=200000;
+}
+// Exact nonnegative integer half-up product, using Number only when the product is safe.
+function platformRoundedProduct(value,units,denominator){
+  const product=value*units;
+  if(Number.isSafeInteger(product)){
+    let whole=Math.floor(product/denominator);
+    let remainder=product-whole*denominator;
+    // Correct a division that rounded upward at an integer boundary.
+    if(remainder<0){whole--;remainder+=denominator;}
+    return whole+(remainder*2>=denominator?1:0);
+  }
+  const den=BigInt(denominator);
+  return Number((2n*BigInt(value)*BigInt(units)+den)/(2n*den));
+}
 function solvePlatformTarget(target,settings,afterTax){
   target=r2(target);
   const pct=settings.pf+(settings.procOn?settings.prPct:0)+(settings.intl?.015:0)+(settings.fx?.02:0);
@@ -4903,19 +4923,43 @@ function solvePlatformTarget(target,settings,afterTax){
     (revTaxMode==='smart'?(model.annualProfitBasis>0?model.annualTax/model.annualProfitBasis:0):getReverseManualPct()/100);
   const failure={solvable:false,targetNet:target,taxSetupNeeded:!!(model&&model.setupNeeded)};
   if(!Number.isFinite(target)||target<0||target>PFC_MAX_AMOUNT||pct<0||Math.round(pct*1000000)>=990000||taxRate<0||taxRate>=1||failure.taxSetupNeeded)return failure;
+  if(![settings.prFix,settings.withdrawal].every(n=>Number.isFinite(n)&&n>=0&&n<=PFC_MAX_AMOUNT))return failure;
+  // At zero gross, processing is waived and withdrawal is capped at zero. Tax setup
+  // must still be valid; the positive-transaction continuous inverse does not apply.
+  if(target===0){
+    const scenario=computeClientScenario(0,settings);
+    return Object.assign({},scenario,{targetNet:0,solvable:true,taxSummary:afterTax?getReverseTaxCalcSummary(0):null});
+  }
   const fixed=(settings.procOn?settings.prFix:0)+settings.withdrawal;
   const slope=(1-pct)*(1-taxRate);
   const continuous=(target/(1-taxRate)+fixed)/(1-pct);
   // Four fee roundings (<=2 cents), plus three tax roundings (<=1.5 cents).
-  // Eight cents safely encloses both, including floating arithmetic at the supported cap.
+  // Eight cents encloses both, including floating arithmetic at the supported cap.
   const radius=.08/slope;
-  const first=target===0?0:Math.max(0,Math.floor((continuous-radius)*100));
+  const first=Math.max(0,Math.floor((continuous-radius)*100));
   const last=Math.min(PFC_MAX_AMOUNT*100,Math.ceil((continuous+radius)*100));
-  if(last-first>200000)return failure;
+  if(!platformCandidateCountAllowed(first,last))return failure;
+  // Cache all invariant rates/profile values. The ascending scan evaluates exact cents
+  // only; full financial scenarios and tax summaries are built once for the winner.
+  const rates=[settings.pf,settings.procOn?settings.prPct:0,settings.intl?.015:0,settings.fx?.02:0].map(r=>Math.round(r*1000000));
+  const fixedCents=settings.procOn?Math.round(settings.prFix*100):0;
+  const withdrawalCents=Math.round(settings.withdrawal*100);
+  const manualUnits=Math.round(taxRate*1000000);
+  const smart=afterTax&&revTaxMode==='smart';
+  const profitCents=smart?Math.round(model.annualProfitBasis*100):0;
+  const annualTaxCents=smart?[model.federalTax,model.stateTax,model.seTax].map(n=>Math.round(n*100)):[];
+  const targetCents=Math.round(target*100);
   for(let c=first;c<=last;c++){
-    const scenario=computeClientScenario(c/100,settings);
-    const tax=afterTax?getReverseTaxCalcSummary(scenario.netAfterFees):null;
-    if(!scenario.invalid&&(afterTax?tax.finalTakeHome:scenario.netAfterFees)>=target){
+    let fees=c>0?fixedCents:0;
+    for(const rate of rates)if(rate)fees+=platformRoundedProduct(c,rate,1000000);
+    if(fees>c)continue;
+    const before=Math.max(0,c-fees-withdrawalCents);
+    let reserve=0;
+    if(smart&&profitCents>0){for(const annual of annualTaxCents)reserve+=platformRoundedProduct(before,annual,profitCents);}
+    else if(afterTax&&!smart)reserve=platformRoundedProduct(before,manualUnits,1000000);
+    if(Math.max(0,before-reserve)>=targetCents){
+      const scenario=computeClientScenario(c/100,settings);
+      const tax=afterTax?getReverseTaxCalcSummary(scenario.netAfterFees):null;
       return Object.assign({},scenario,{targetNet:target,solvable:true,taxSummary:tax});
     }
   }
@@ -5340,9 +5384,22 @@ function updateQuickUI(s,fwdTaxModel){
   updateAmountChipState('amtNet');
 }
 
+function activePlatformNumericFields(){
+  const fields=['withdrawalFee'];
+  if(getChipName()==='Custom')fields.push('customFeeInput');
+  if($('procToggle').checked)fields.push('prPct','prFix');
+  if((mode==='client'?fwdTaxMode:revTaxMode)==='custom')fields.push(mode==='client'?'fwdCustomTaxPct':'revCustomTaxPct');
+  return fields;
+}
+function platformNativeInputInvalid(input){
+  return input.validity.badInput||input.dataset.nativeInvalid==='true';
+}
+function platformReserveInputValid(input){
+  return !platformNativeInputInvalid(input)&&/^\d*(?:\.\d{0,4})?$/.test(input.value)&&Number(input.value)>=0&&Number(input.value)<99;
+}
 function invalidatePlatformResult(message){
   window.__pfcResult=null;window.__pfcReverseResult=null;
-  const input=$(mode==='client'?'amtGross':'amtNet');input.setAttribute('aria-invalid','true');input.setAttribute('aria-describedby','errorMsg');
+  const input=$(mode==='client'?'amtGross':'amtNet');input.setAttribute('aria-invalid',String(!Number.isFinite(readPlatformTransactionInput(input))));input.setAttribute('aria-describedby','errorMsg');
   $('errorMsg').textContent=message;$('errorMsg').classList.add('show');
   $('errorMsg').setAttribute('role','alert');
   ['resNet1','resGross2','resPlatform','resTotal','resWithdrawal','resEff','resFinal','resTaxNet','resTaxAmt'].forEach(id=>setText(id,'—'));
@@ -5372,6 +5429,14 @@ function platformValidationMessage(s){
 function requirePlatformResult(){calc();return !!window.__pfcResult;}
 /* ══ CALC ══ */
 function calc(){
+  trackPlatformCalculationRevision();
+  const nativeInvalid=activePlatformNumericFields().filter(id=>platformNativeInputInvalid($(id)));
+  if(nativeInvalid.length){
+    $('customFeePanel').style.display=getChipName()==='Custom'?'block':'none';
+    renderForwardTaxControls();renderReverseTaxControls();
+    nativeInvalid.forEach(id=>{$(id).setAttribute('aria-invalid','true');$(id).setAttribute('aria-describedby','errorMsg');});
+    return invalidatePlatformResult('Complete the highlighted numeric input. Incomplete signs and exponent notation are unsupported; enter an explicit zero for 0%.');
+  }
   const activeTaxModel=mode==='client'?getForwardTaxPreviewModel():getReverseTaxPreviewModel();
   if(mode==='client'){
     syncForwardTaxUiToLegacy(activeTaxModel);
@@ -5385,7 +5450,7 @@ function calc(){
   const validation=platformValidationMessage(s);
   if(validation)return invalidatePlatformResult(validation);
   $('errorMsg').classList.remove('show');
-  ['amtGross','amtNet'].forEach(id=>$(id).removeAttribute('aria-invalid'));
+  ['amtGross','amtNet',...activePlatformNumericFields()].forEach(id=>$(id).removeAttribute('aria-invalid'));
   if(mode==='client'){
     const scenario=computeClientScenario(readPlatformTransactionInput('amtGross')||0,s);
     if(scenario.invalid)return invalidatePlatformResult('Selected fixed and percentage fees exceed this payment. Increase the payment or reduce fees; no payout is available.');
@@ -5678,6 +5743,7 @@ function downloadCompImage(){
 
 /* ══ RESET ══ */
 function resetAll(){
+  document.querySelectorAll('input[type="number"]').forEach(input=>{input.dataset.nativeInvalid='false';input.dataset.invalidReserve='false';});
   clearPlatformImportContext();
   // Clear localStorage for true clean slate
   try{localStorage.removeItem('pfcState');}catch(e){}
@@ -5765,6 +5831,7 @@ $('fxToggle').addEventListener('change',()=>{updateCards();calc();});
 $('taxToggle').addEventListener('change',function(){syncLegacyPlatformTaxStateScaffold();$('taxSection').style.display='none';updateCards();renderForwardTaxControls();calc();});
 $('seTaxToggle').addEventListener('change',function(){$('seTaxSection').style.display=this.checked?'block':'none';updateCards();calc();});
 $('procPreset').addEventListener('change',function(){
+  ['prPct','prFix'].forEach(id=>$(id).dataset.nativeInvalid='false');
   const p=PROC_PRESETS[this.value];
   if(p){$('prPct').value=p.pct;$('prFix').value=p.fix;}
   if(!$('procToggle').checked){$('procToggle').checked=true;syncProc();updateCards();}
@@ -5802,6 +5869,7 @@ $('withdrawalFee').addEventListener('input',function(){setWdChip(this.value);cal
 
     // BLUR: restore safe default if field left empty
     inp.addEventListener('blur', function(){
+      if(platformNativeInputInvalid(this)){calc();return;}
       const v = this.value.trim();
       if(v === '' || v === '-'){
         const id = this.id;
@@ -5852,6 +5920,7 @@ document.querySelectorAll('#revTaxChips .pfc-tax-chip').forEach(chip=>{
 });
 if($('fwdCustomTaxPct')){
   $('fwdCustomTaxPct').addEventListener('input',function(){
+    if(!platformReserveInputValid(this)){this.dataset.invalidReserve='true';calc();return;}
     this.dataset.invalidReserve=String(!/^\d*(?:\.\d{0,4})?$/.test(this.value)||Number(this.value)>=99||Number(this.value)<0);
     setForwardTaxState({mode:'custom',manualTaxPct:this.value});
     renderForwardTaxControls();
@@ -5904,6 +5973,7 @@ if($('fwdTaxRegion')){
 }
 if($('revCustomTaxPct')){
   $('revCustomTaxPct').addEventListener('input',function(){
+    if(!platformReserveInputValid(this)){this.dataset.invalidReserve='true';calc();return;}
     this.dataset.invalidReserve=String(!/^\d*(?:\.\d{0,4})?$/.test(this.value)||Number(this.value)>=99||Number(this.value)<0);
     setReverseTaxState({mode:'custom',manualTaxPct:this.value});
     renderReverseTaxControls();
@@ -5995,6 +6065,7 @@ $('ctaBtn').addEventListener('click',function(){
 
 // Preset buttons
 $('presetUS').addEventListener('click',function(){
+  ['prPct','prFix'].forEach(id=>$(id).dataset.nativeInvalid='false');
   // Mark this preset as active, deactivate the other
   $('presetUS').classList.add('active');
   $('presetClean').classList.remove('active');
@@ -6026,6 +6097,7 @@ $('presetUS').addEventListener('click',function(){
   showToast('Realistic settings applied ✓','success');
 });
 $('presetClean').addEventListener('click',function(){
+  ['customFeeInput','withdrawalFee'].forEach(id=>$(id).dataset.nativeInvalid='false');
   clearPlatformImportContext();
   // Mark this preset as active, deactivate the other
   $('presetClean').classList.add('active');
@@ -6544,12 +6616,12 @@ function renderPremiumPdfHtml(data){
           ]));
   }
   const legend=qa('.legend span');
-  if(legend[0]) legend[0].innerHTML='<i class="dot" style="background:var(--green);"></i>'+(data.mode==='client'?data.keepPct.toFixed(1)+'% You Keep':((data.targetKeep>0&&data.chargeClient>0?(data.targetKeep/data.chargeClient)*100:0).toFixed(1)+'% Keep Target'));
+  if(legend[0]) legend[0].innerHTML='<i class="dot" style="background:var(--green);"></i>'+(data.keepPct.toFixed(1)+(data.taxMeta.enabled?'% After-reserve Keep':'% You Keep'));
   if(legend[1]) legend[1].innerHTML='<i class="dot" style="background:var(--orange);"></i>'+data.platformPct.toFixed(1)+'% Platform';
   if(legend[2]) legend[2].innerHTML='<i class="dot" style="background:var(--violet);"></i>'+data.taxPct.toFixed(1)+'% Tax';
   if(legend[3]) legend[3].innerHTML='<i class="dot" style="background:var(--red);"></i>'+data.otherPct.toFixed(1)+'% Other';
   const segKeep=q('.seg-keep'),segPlatform=q('.seg-platform'),segTax=q('.seg-tax'),segOther=q('.seg-other');
-  if(segKeep) segKeep.style.width=(data.mode==='client'?data.keepPct:((data.targetKeep>0&&data.chargeClient>0?(data.targetKeep/data.chargeClient)*100:0))).toFixed(2)+'%';
+  if(segKeep) segKeep.style.width=data.keepPct.toFixed(2)+'%';
   if(segPlatform) segPlatform.style.width=data.platformPct.toFixed(2)+'%';
   if(segTax) segTax.style.width=data.taxPct.toFixed(2)+'%';
   if(segOther) segOther.style.width=data.otherPct.toFixed(2)+'%';
@@ -6687,7 +6759,7 @@ function getComparisonExportData(){
     outcomeText:data.mode==='client'
       ?('Your active setup is '+escapeHtml(data.platform)+'. Based on the same '+fmt(data.clientPays)+' client payment, '+escapeHtml(bestRow?bestRow.name:'the best option')+' returns the strongest '+(clientTaxOn?'after-tax retained amount':'pre-tax keep')+'.')
       :('Your active setup is '+escapeHtml(data.platform)+'. To hold the same '+fmt(data.targetKeep)+' '+(reverseAfterTax?'after-tax target':'keep target')+', '+escapeHtml(bestRow?bestRow.name:'the best option')+' requires the lowest modeled gross amount.'),
-    tableRows:sortedRows.slice(0,6),
+    tableRows:sortedRows,
     footNote:data.comparisonNote,
     bestRow:bestRow,
     currentRow:currentRow
@@ -6731,7 +6803,7 @@ function renderComparisonShareTemplate(data){
   const secondaryHdr=exportData.raw.mode==='client'
     ?'Client Pays'
     :(reverseAfterTax?'After-Tax Keep':'Before-Tax Keep');
-  const title='Make the better payout decision faster';
+  const title='Compare modeled fee scenarios';
   const subtitle=exportData.raw.mode==='client'
     ?(clientTaxOn
       ?'Instantly compare all major platforms side-by-side to find where the same modeled gross amount leaves you with the strongest final keep.'
@@ -6743,14 +6815,14 @@ function renderComparisonShareTemplate(data){
     ?('Modeled comparison: '+(exportData.bestRow?exportData.bestRow.name:'Model leader')+' — '+(clientTaxOn?'you retain ':'you keep ')+exportData.bestValue+' vs current '+exportData.currentValue)
     :('Modeled comparison: '+(exportData.bestRow?exportData.bestRow.name:'Model leader')+' — client pays '+exportData.bestValue+' vs current '+exportData.currentValue);
   const recommendSub=exportData.raw.mode==='client'
-    ?((exportData.bestRow?exportData.bestRow.name:'The best option')+' increases '+(clientTaxOn?'final retained income':'take-home')+' by '+exportData.edgeValue+' compared with your current setup.')
-    :((exportData.bestRow?exportData.bestRow.name:'The best option')+' reduces required client charge by '+fmt(Math.max(0,(exportData.currentRow?exportData.currentRow.charge:0)-(exportData.bestRow?exportData.bestRow.charge:0)))+' compared with your current setup.');
+    ?((exportData.bestRow?exportData.bestRow.name:'The best option')+' has a modeled increase in '+(clientTaxOn?'final retained income':'take-home')+' by '+exportData.edgeValue+' compared with your current setup.')
+    :((exportData.bestRow?exportData.bestRow.name:'The best option')+' has a modeled gross quote lower by '+fmt(Math.max(0,(exportData.currentRow?exportData.currentRow.charge:0)-(exportData.bestRow?exportData.bestRow.charge:0)))+' compared with your current setup.');
   const statOneLabel=exportData.raw.mode==='client'?(clientTaxOn?'Current Final Keep':'Current Take-Home'):'Current Charge';
   const statTwoLabel=exportData.raw.mode==='client'?(clientTaxOn?'Highest Modeled Keep':'Highest Modeled Keep'):'Lowest Charge';
   const statOneSub=escapeHtml(exportData.raw.platform+(exportData.raw.mode==='client'?(clientTaxOn?' retained result':' current result'):' required'));
   const statTwoSub=escapeHtml((exportData.bestRow?exportData.bestRow.name:'Model leader')+(exportData.raw.mode==='client'?(clientTaxOn?' retains most':' keeps most'):' requires least'));
   const comparisonNote=exportData.footNote;
-  const disclaimer='All values are estimates · Fees reflect your current live comparison settings · Consult a tax professional for accuracy';
+  const disclaimer='Illustrative freelancer-facing fee assumptions, not actual client invoices or marketplace pricing. Toptal models deductions from the talent-set rate; client pricing is separate. Fees vary by contract, account, tier and payment method. Minimums, subscriptions and PeoplePerHour tiers/VAT are not modeled. Guru and Payoneer presets are unverified illustrations. Separate processing applies only when actually owed. Tax amounts are planning reserves.';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7040,7 +7112,7 @@ function renderComparisonShareTemplate(data){
           <div class="recommend-main">
             <div class="recommend-icon">🏆</div>
             <div class="recommend-copy">
-              <div class="recommend-label">Recommended Platform</div>
+              <div class="recommend-label">Modeled Scenario Leader</div>
               <div class="recommend-text">${escapeHtml(recommendText)}</div>
               <div class="recommend-sub">${escapeHtml(recommendSub)}</div>
             </div>
@@ -7264,9 +7336,24 @@ async function downloadBlobAsPng(blob,fileName){
   a.download=fileName;
   a.click();
 }
+let platformCalculationRevision=0;
+let platformCalculationSignature='';
+function trackPlatformCalculationRevision(){
+  const signature=JSON.stringify({mode,fields:Array.from(document.querySelectorAll('#pfcApp input,#pfcApp select')).map(e=>[e.id,e.value,e.checked,e.validity.badInput,e.dataset.nativeInvalid]),platform:getChipName(),fwdTaxMode,revTaxMode,revGoalType,profile:getPlatformAnnualTaxProfile()});
+  if(signature!==platformCalculationSignature){platformCalculationSignature=signature;platformCalculationRevision++;}
+}
+function platformExportStillCurrent(revision){
+  trackPlatformCalculationRevision();
+  if(revision===platformCalculationRevision&&window.__pfcResult)return true;
+  showToast('Export canceled because the calculation changed. Generate a new report.','error');
+  return false;
+}
 async function exportComparisonChartPng(){
   if(!requirePlatformResult())return;
+  trackPlatformCalculationRevision();
+  const exportRevision=platformCalculationRevision;
   const ready=await ensureHtml2CanvasReady();
+  if(!platformExportStillCurrent(exportRevision))return;
   if(!ready){
     showToast('Image export needs the download library to finish loading.','error');
     return;
@@ -7323,6 +7410,7 @@ async function exportComparisonChartPng(){
     });
     const activeMode=getActiveExportMode();
     const activePlatform=getCurrentExportData().platform.toLowerCase().replace(/\s+/g,'-');
+    if(!platformExportStillCurrent(exportRevision))return;
     await downloadBlobAsPng(blob,'platform-comparison-premium-'+activePlatform+'-'+activeMode+'-'+Date.now()+'.png');
     showToast('Comparison image downloaded!','success');
   }catch(e){
@@ -7333,7 +7421,10 @@ async function exportComparisonChartPng(){
 }
 async function exportCustomPng(){
   if(!requirePlatformResult())return;
+  trackPlatformCalculationRevision();
+  const exportRevision=platformCalculationRevision;
   const ready=await ensureHtml2CanvasReady();
+  if(!platformExportStillCurrent(exportRevision))return;
   if(!ready){
     showToast(window.__h2cRetrying?'Retrying... click Image again in a moment.':'Image export needs the download library to finish loading.','error');
     return;
@@ -7397,6 +7488,7 @@ async function exportCustomPng(){
       }
     });
     const fileName='platform-fee-'+data.platform.toLowerCase().replace(/\s+/g,'-')+'-'+activeMode+'-'+Date.now()+'.png';
+    if(!platformExportStillCurrent(exportRevision))return;
     await downloadBlobAsPng(blob,fileName);
     showToast('Image downloaded!','success');
   }catch(e){
@@ -7407,6 +7499,11 @@ async function exportCustomPng(){
 }
 async function downloadPDF(){
   if(!requirePlatformResult())return;
+  trackPlatformCalculationRevision();
+  const exportRevision=platformCalculationRevision;
+  const ready=await ensureHtml2CanvasReady();
+  if(!platformExportStillCurrent(exportRevision))return;
+  if(!ready){showToast('PDF library unavailable.','error');return;}
   const REPORT_W=794;
   const REPORT_H=1123;
   if(typeof window.jspdf==='undefined'){
@@ -7423,7 +7520,8 @@ async function downloadPDF(){
   }
   showToast('Generating premium PDF...','success');
   const data=buildPremiumPdfData();
-  const mount=ensurePremiumPdfMount();
+  const mount=ensurePremiumPdfMount().cloneNode(false);
+  mount.removeAttribute('id');document.body.appendChild(mount);
   mount.innerHTML=renderPremiumPdfHtml(data);
   if(!mount.innerHTML.trim()){
     showToast('PDF template render failed.','error');
@@ -7498,13 +7596,14 @@ async function downloadPDF(){
       doc.text('USAFC • '+(i+1)+' / '+canvases.length,105,290,{align:'center'});
     });
     const fileName='platform-fee-'+data.platform.toLowerCase().replace(/\s+/g,'-')+'-'+Date.now()+'.pdf';
+    if(!platformExportStillCurrent(exportRevision)){mount.innerHTML='';return;}
     doc.save(fileName);
     mount.innerHTML='';
     showToast('PDF downloaded!','success');
   }catch(e){
     mount.innerHTML='';
     showToast('PDF export failed — try again','error');
-  }
+  }finally{mount.remove();}
 }
 
 
@@ -7717,6 +7816,9 @@ function initializePlatformAccessibility(){
     sync();new MutationObserver(sync).observe(button,{attributes:true,attributeFilter:['class']});
   });
 }
+document.querySelectorAll('input[type="number"]').forEach(input=>{
+  input.addEventListener('input',function(){this.dataset.nativeInvalid=String(this.validity.badInput);},true);
+});
 initializePlatformAccessibility();
 bindPlatformIntegerMoneyInputs();bindPlatformTransactionMoneyInputs();bindAmountChips();load();syncProc();updateCards();calc();
 

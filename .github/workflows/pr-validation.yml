@@ -11,6 +11,10 @@ concurrency:
   group: pr-validation-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   regression-and-browser:
     name: Regression and real exports
@@ -25,6 +29,7 @@ jobs:
           node-version: '24'
       - name: Configure temporary test paths
         run: |
+          set -euo pipefail
           {
             echo "NODE_PATH=$RUNNER_TEMP/release-checks/node_modules"
             echo "TAX_EXPORT_LIB_DIR=$RUNNER_TEMP/release-checks/node_modules"
@@ -36,10 +41,12 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Node regressions
         run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/release-evidence"
           node --test tests/*.test.js | tee "$RUNNER_TEMP/release-evidence/node.log"
       - name: Install browser and production export libraries for tests
         run: |
+          set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/release-checks" --no-package-lock --ignore-scripts --no-audit --no-fund playwright@1.62.1 jspdf@2.5.1 html2canvas@1.4.1 html2pdf.js@0.10.1 pdf-lib@1.17.1
           node "$RUNNER_TEMP/release-checks/node_modules/playwright/cli.js" install --with-deps chromium
           mkdir -p "$IGP_EXPORT_LIB_DIR"
@@ -50,6 +57,7 @@ jobs:
         env:
           PFC_ARTIFACT_DIR: ${{ runner.temp }}/release-evidence/platform
         run: |
+          set -euo pipefail
           node tests/platform-fee-remediation.playwright.js | tee "$RUNNER_TEMP/release-evidence/platform-browser.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/platform-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
           python3 -m http.server 4173 --bind 127.0.0.1 > "$RUNNER_TEMP/release-evidence/platform-server.log" 2>&1 &
@@ -59,14 +67,17 @@ jobs:
           node tests/platform-fee-caret.playwright.js | tee "$RUNNER_TEMP/release-evidence/platform-caret.log"
       - name: Hourly Rate input integrity and native exports
         run: |
+          set -euo pipefail
           node tests/hourly-rate.playwright.js | tee "$RUNNER_TEMP/release-evidence/hourly-browser.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/hourly-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Tax Estimator desktop, mobile and native exports
         run: |
+          set -euo pipefail
           node tests/tax-estimator.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-browser.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Income Goal Planner and native exports
         run: |
+          set -euo pipefail
           node tests/income-goal-planner.playwright.js | tee "$RUNNER_TEMP/release-evidence/income-goal-browser.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/income-goal-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Save test logs and actual export files

@@ -3,7 +3,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.PFC_ARTIFACT_DIR||'/tmp/usafc-platform-evidence';fs.mkdirSync(out,{recursive:true});
 const cases=[],test=(name,run)=>cases.push({name,run});
-const html=fs.readFileSync(path.join(root,'platform-fee-calculator.html'),'utf8').replace('initializePlatformAccessibility();\nbindPlatformIntegerMoneyInputs();',`window.__pfcTest={calc,buildPremiumPdfData,buildPlatformToolkitPayload,applyPlatformToolkitAutofill,goNextPlatform,copyBreakdown,resetAll,populateTemplate,renderPremiumPdfHtml,setForwardTaxMode,setReverseTaxMode,setPlatformAnnualTaxProfile};initializePlatformAccessibility();\nbindPlatformIntegerMoneyInputs();`);
+const html=fs.readFileSync(path.join(root,'platform-fee-calculator.html'),'utf8').replace('initializePlatformAccessibility();\nbindPlatformIntegerMoneyInputs();',`window.__pfcTest={calc,buildPremiumPdfData,buildPlatformToolkitPayload,applyPlatformToolkitAutofill,goNextPlatform,copyBreakdown,resetAll,populateTemplate,renderPremiumPdfHtml,setForwardTaxMode,setReverseTaxMode,setPlatformAnnualTaxProfile,exportCustomPng,exportComparisonChartPng,downloadPDF,getComparisonExportData,renderComparisonShareTemplate,
+ holdLibraries(){const original=ensureHtml2CanvasReady;ensureHtml2CanvasReady=async()=>{window.__libraryEntered=true;await new Promise(r=>window.__releaseLibrary=r);return original()};}
+};initializePlatformAccessibility();\nbindPlatformIntegerMoneyInputs();`);
 const val=(p,id,v)=>p.locator('#'+id).fill(String(v));
 const result=p=>p.evaluate(()=>window.__pfcResult);
 const custom=async(p,n)=>{await p.locator('[data-name="Custom"]').click();await val(p,'customFeeInput',n)};
@@ -115,14 +117,14 @@ for(const width of [1366,390,360])test(`mobile/layout/theme ${width}px has no ho
   await p.locator(mode).click();await custom(p,12);
   assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  }
- await p.evaluate(()=>document.body.classList.add('dark'));await p.screenshot({path:path.join(out,`layout-${width}.png`),fullPage:true});
+ await p.evaluate(()=>document.body.classList.add('dark'));assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await p.screenshot({path:path.join(out,`layout-${width}.png`),fullPage:true});
 });
 async function libs(p){
  const dir=process.env.PFC_EXPORT_LIB_DIR||process.env.NODE_PATH;
  assert.ok(dir,'PFC_EXPORT_LIB_DIR or NODE_PATH is required');
  await p.addScriptTag({path:path.join(dir,'html2canvas/dist/html2canvas.min.js')});
  await p.addScriptTag({path:path.join(dir,'jspdf/dist/jspdf.umd.min.js')});
- await p.evaluate(()=>{window.__exportCapture=[];const capture=window.html2canvas;window.html2canvas=async function(el,opts){__exportCapture.push({text:el.innerText,legend:[...el.querySelectorAll('.legend span')].map(e=>e.innerText)});return capture(el,opts)}});
+ await p.evaluate(()=>{window.__exportCapture=[];const capture=window.html2canvas;window.html2canvas=async function(el,opts){__exportCapture.push({text:el.innerText,legend:[...el.querySelectorAll('.legend span')].map(e=>e.innerText),widths:[...el.querySelectorAll('.seg-keep,.seg-platform,.seg-tax,.seg-other')].map(e=>parseFloat(e.style.width))});return capture(el,opts)}});
 }
 for(const state of ['forward-custom','reverse-preview','reverse-manual','reverse-smart'])test(`X1/X2/X3 genuine PNG, comparison PNG and paginated PDF: ${state}`,async p=>{
  await custom(p,12);
@@ -144,7 +146,87 @@ for(const state of ['forward-custom','reverse-preview','reverse-manual','reverse
   }else{assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');assert.ok(bytes.length>5000);}
  }
  const captures=await p.evaluate(()=>__exportCapture);assert.ok(captures[0].text.includes(d.mode==='client'?'$880.00':d.chargeClient.toLocaleString('en-US',{style:'currency',currency:'USD'})));assert.ok(captures[0].text.includes('Custom'));fs.writeFileSync(path.join(out,state+'-capture.json'),JSON.stringify(captures,null,2));
- const chart=captures.find(c=>c.legend.length===4);assert.ok(chart);const sum=chart.legend.reduce((n,s)=>n+parseFloat(s),0);assert.ok(Math.abs(sum-100)<=.2,JSON.stringify(chart.legend));
+ const charts=captures.filter(c=>c.legend.length===4);assert.ok(charts.length>=2,'PNG and PDF charts must both be captured');for(const chart of charts){const sum=chart.legend.reduce((n,s)=>n+parseFloat(s),0);assert.ok(Math.abs(sum-100)<=.2,JSON.stringify(chart.legend));assert.ok(Math.abs(chart.widths.reduce((a,b)=>a+b,0)-100)<.03);}
+});
+
+for(const field of ['customFeeInput','prPct','fwdCustomTaxPct','revCustomTaxPct'])test(`Round 2 R1 keyboard-native invalidity: ${field}`,async p=>{
+ if(field==='customFeeInput')await custom(p,12);
+ if(field==='prPct'){await p.locator('#procToggle').check();await p.locator('details').first().evaluate(e=>e.open=true);}
+ if(field==='fwdCustomTaxPct')await p.locator('#fwdTaxChips [data-mode="custom"]').click();
+ if(field==='revCustomTaxPct'){await p.locator('#tabNet').click();await p.locator('#revGoalTypeChips [data-goal="after_tax"]').click();await p.locator('#revTaxChips [data-mode="custom"]').click();}
+ const input=p.locator('#'+field);let downloads=0;p.on('download',()=>downloads++);
+ for(const text of ['-','1e','1e-']){
+  await input.fill('');await input.pressSequentially(text);
+  assert.equal(await input.evaluate(e=>e.validity.badInput),true,text);
+  assert.equal(await result(p),null,text);
+  await p.evaluate(()=>{__pfcTest.copyBreakdown();__pfcTest.goNextPlatform();__pfcTest.exportCustomPng();__pfcTest.exportComparisonChartPng();__pfcTest.downloadPDF()});
+  assert.equal(await result(p),null);assert.equal(downloads,0);
+  await input.blur();assert.equal(await result(p),null,'blur cannot turn native badInput into zero');
+  await input.fill('0');assert.ok(await result(p));
+ }
+ await input.fill('');await input.pressSequentially('1e-');await p.reload();assert.equal(await result(p),null,'reload must retain invalidity');
+ if(field==='prPct')await p.locator('details').first().evaluate(e=>e.open=true);
+ await p.locator('#'+field).fill('0');assert.ok(await result(p));await p.reload();assert.ok(await result(p),'explicit zero persists');
+});
+test('Round 2 R1 inactive reserve invalidity persists through mode switching and reload',async p=>{
+ await p.locator('#revTaxChips').evaluate(e=>e.dataset.test='');
+ await p.locator('#tabNet').click();await p.locator('#revTaxChips [data-mode="custom"]').click();await p.locator('#revCustomTaxPct').fill('');await p.locator('#revCustomTaxPct').pressSequentially('1e');assert.equal(await result(p),null);
+ await p.locator('#tabClient').click();assert.ok(await result(p));await p.reload();assert.ok(await result(p));await p.locator('#tabNet').click();assert.equal(await result(p),null);
+ await p.locator('#revCustomTaxPct').fill('0');assert.ok(await result(p));
+});
+test('Round 2 R2 all chart legends and segments share canonical composition',async p=>{
+ await custom(p,12);
+ for(const mode of ['client','net'])for(const tax of ['off','manual','smart'])for(const goal of (mode==='net'?['before_tax','after_tax']:['before_tax'])){
+  await p.locator(mode==='client'?'#tabClient':'#tabNet').click();
+  if(mode==='net')await p.locator(`#revGoalTypeChips [data-goal="${goal}"]`).click();
+  await p.evaluate(({mode,tax})=>{__pfcTest.setPlatformAnnualTaxProfile({annualIncome:96000,annualExpenses:16000});(mode==='client'?__pfcTest.setForwardTaxMode:__pfcTest.setReverseTaxMode)(tax,tax==='manual'?25:undefined);__pfcTest.calc()}, {mode,tax});
+  const charts=await p.evaluate(()=>{
+   const d=__pfcTest.buildPremiumPdfData();const parser=new DOMParser();
+   const documents=[__pfcTest.renderPremiumPdfHtml(d),__pfcTest.populateTemplate(d.mode==='client'?__PFC_PNG_TEMPLATE_CLIENT:__PFC_PNG_TEMPLATE_KEEP,d)];
+   return documents.map(html=>{const doc=parser.parseFromString(html,'text/html');return {legend:[...doc.querySelectorAll('.legend span')].map(e=>e.textContent),widths:['keep','platform','tax','other'].map(k=>parseFloat(doc.querySelector('.seg-'+k).style.width)),expected:[d.keepPct,d.platformPct,d.taxPct,d.otherPct]}});
+  });
+  for(const chart of charts){assert.equal(chart.legend.length,4);assert.ok(Math.abs(chart.legend.reduce((n,s)=>n+parseFloat(s),0)-100)<.21,JSON.stringify({mode,tax,goal,chart}));chart.widths.forEach((w,i)=>assert.ok(Math.abs(w-chart.expected[i])<.011));}
+ }
+});
+for(const mode of ['client','net'])test(`Round 2 R3/R8 comparison image caveats and seventh-ranked current Custom: ${mode}`,async p=>{
+ await custom(p,25);if(mode==='net')await p.locator('#tabNet').click();
+ const d=await p.evaluate(()=>{const d=__pfcTest.getComparisonExportData();const doc=new DOMParser().parseFromString(__pfcTest.renderComparisonShareTemplate(),'text/html');return {rows:d.tableRows,body:doc.body.innerText}});
+ assert.ok(d.rows.some(r=>r.name==='Custom'&&r.isCurrent));assert.ok(!/recommended platform/i.test(d.body));
+ assert.match(d.body,/talent-set rate/i);assert.match(d.body,/client pricing is separate/i);assert.match(d.body,/contract/i);
+ assert.equal(d.rows.find(r=>r.name==='Custom').diff,0);
+ await libs(p);const dl=p.waitForEvent('download');await p.locator('#compDlBtn').click();await (await dl).saveAs(path.join(out,'round2-custom25-'+mode+'-comparison.png'));
+ fs.writeFileSync(path.join(out,'round2-custom25-'+mode+'-capture.json'),JSON.stringify(await p.evaluate(()=>__exportCapture),null,2));
+});
+test('Round 2 R4 zero targets before positive-target bounds',async p=>{
+ await p.locator('#tabNet').click();await val(p,'amtNet',0);await p.locator('details').first().evaluate(e=>e.open=true);
+ for(const type of ['fixed','withdrawal'])for(const tax of ['off','manual','smart']){
+  await p.locator('#procToggle').setChecked(type==='fixed');if(type==='fixed')await val(p,'prFix',1800);await val(p,'withdrawalFee',type==='withdrawal'?2000:0);
+  await p.evaluate(tax=>{__pfcTest.setPlatformAnnualTaxProfile({annualIncome:96000,annualExpenses:16000});__pfcTest.setReverseTaxMode(tax,tax==='manual'?25:undefined);__pfcTest.calc()},tax);
+  for(const goal of ['before_tax','after_tax']){await p.locator(`#revGoalTypeChips [data-goal="${goal}"]`).click();assert.equal((await result(p))?.clientPays,0,`${type}/${tax}/${goal}`);}
+ }
+ await p.evaluate(()=>{__pfcTest.setPlatformAnnualTaxProfile({annualIncome:null});__pfcTest.calc()});assert.equal(await result(p),null);
+});
+for(const name of ['exportCustomPng','exportComparisonChartPng','downloadPDF'])for(const delay of ['capture','library'])for(const changed of ['-100','1100'])test(`Round 2 R5 cancels ${name} during ${delay} on ${changed}`,async p=>{
+ await libs(p);let downloads=0;p.on('download',()=>downloads++);
+ await p.evaluate(({name,delay})=>{
+  if(delay==='library')__pfcTest.holdLibraries();
+  else{const original=window.html2canvas;window.html2canvas=async(...args)=>{if(!window.__captureEntered){window.__captureEntered=true;await new Promise(r=>window.__releaseCapture=r)}return original(...args)}}
+  window.__exportPromise=__pfcTest[name]();
+ },{name,delay});
+ await p.waitForFunction(delay=>delay==='library'?window.__libraryEntered:window.__captureEntered,delay,{timeout:10000});
+ await val(p,'amtGross',changed);
+ await p.evaluate(delay=>delay==='library'?__releaseLibrary():__releaseCapture(),delay);
+ await p.evaluate(()=>__exportPromise);await p.waitForTimeout(100);assert.equal(downloads,0,'stale export must never finalize');
+ assert.match(await p.locator('#toast').textContent().catch(()=>''),/cancel|changed|outdated/i);
+});
+test('Round 2 R7 measured ordinary and high-rate full calculation',async p=>{
+ await p.locator('#tabNet').click();await p.locator('#revGoalTypeChips [data-goal="after_tax"]').click();await p.locator('#revTaxChips [data-mode="custom"]').click();
+ const rows=[];
+ for(const [rate,reserve,target,expected] of [[10,25,1000,1481.48],[98.9999,98.9999,1,9948.51]]){
+  await custom(p,rate);await val(p,'revCustomTaxPct',reserve);const start=Date.now();await val(p,'amtNet',target);const inputMs=Date.now()-start;
+  const measured=await p.evaluate(()=>{const samples=[];for(let i=0;i<5;i++){const t=performance.now();__pfcTest.calc();samples.push(performance.now()-t)}return {samples,result:__pfcResult}});assert.equal(measured.result.clientPays,expected);rows.push({rate,reserve,target,inputMs,...measured});
+ }
+ fs.writeFileSync(path.join(out,'r7-browser-performance.json'),JSON.stringify(rows,null,2));console.log('PERFORMANCE '+JSON.stringify(rows));
 });
 (async()=>{
  const server=require('node:http').createServer((req,res)=>{const file=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!file.startsWith(root+path.sep)){res.writeHead(403);return res.end();}fs.readFile(file,(err,bytes)=>{if(err){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(bytes)});});
