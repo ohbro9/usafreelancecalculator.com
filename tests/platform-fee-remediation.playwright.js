@@ -135,10 +135,18 @@ for(const [scope,width] of [['fwd',390],['rev',360]])test(`Mobile annual money g
   assert.equal(await income.inputValue(),'9,6000','malformed paste remains visibly invalid');
   assert.equal(await result(p),null,'invalid grouped input blocks calculations');
   for(const id of ['TaxIncomeValue','TaxExpensesValue','TaxBasisValue'])assert.doesNotMatch(await p.locator('#'+scope+id).textContent(),/NaN/i);
+  const otherScope=scope==='fwd'?'rev':'fwd';
+  assert.notEqual(await p.locator('#'+otherScope+'AnnualIncome').inputValue(),'NaN','shared invalid profile must not print NaN in the opposite mode');
   assert.equal(await p.locator('#'+scope+'ExpenseQuickChips .wd-chip').first().getAttribute('aria-disabled'),'true');
   await income.blur();assert.equal(await income.inputValue(),'9,6000');
   await income.fill('96000');await income.blur();assert.equal(await income.inputValue(),'96,000');
   assert.ok(await result(p),'correcting invalid input recovers');
+  await expenses.fill('1,6000');
+  assert.equal(await result(p),null,'malformed expenses must block Smart tax');
+  assert.doesNotMatch(await p.locator('#'+scope+'TaxExpensesValue').textContent(),/NaN/i);
+  await expenses.fill('16000');await expenses.blur();
+  assert.equal(await expenses.inputValue(),'16,000');
+  assert.ok(await result(p),'correcting expenses also recovers');
   await p.reload();
   assert.equal(await p.locator('#'+scope+'AnnualIncome').inputValue(),'96,000');
   assert.equal(await p.locator('#'+scope+'AnnualExpenses').inputValue(),'16,000');
