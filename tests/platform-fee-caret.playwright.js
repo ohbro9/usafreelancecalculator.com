@@ -110,8 +110,9 @@ async function runProfile(browser, name, options) {
       assert.equal(state.pending, null, `${name}/${id}: ${key} edit clears pending`);
       assert.ok(!['1.23', '5.60', '67.21', '1,234,569'].includes(state.value),
         `${name}/${id}: ${key} must not collapse or append incorrectly`);
-      assert.equal(state.value, key === 'ArrowLeft' ? '12,394.56' : '1,234.59',
+      assert.equal(state.value, key === 'ArrowLeft' ? '12,394.56' : '1234.596',
         `${name}/${id}: ${key} respects the moved caret`);
+      if(key==='ArrowRight')assert.equal(await page.evaluate(()=>window.__pfcResult),null,'Three-decimal edit must stay invalid rather than silently truncate');
     }
 
     for (const separator of ['.', ',']) {
