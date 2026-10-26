@@ -3317,19 +3317,31 @@ function formatPlatformIntegerInputElement(input){
   const raw=input.value||'';
   const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
   const digitsBeforeCaret=raw.slice(0,selectionStart).replace(/[^\d]/g,'').length;
-  const isValid=raw.trim()===''||Number.isFinite(platformMoney(raw));
+  const prior=input._platformAnnualBeforeInput;
+  input._platformAnnualBeforeInput=null;
+  const trustedGroupedEdit=prior&&Number.isFinite(platformMoney(prior.value))
+    &&prior.value.includes(',')
+    &&/^(insertText|deleteContentBackward|deleteContentForward)$/.test(prior.type)
+    &&(prior.type.startsWith('delete')||/^\d+$/.test(prior.data||''))
+    &&/^[\d,]+$/.test(raw);
+  // A genuine numeric edit to an already grouped value may temporarily
+  // produce 9,6000; remove separators only for that proven edit path.
+  // Arbitrary malformed pasted text remains invalid.
+  const candidate=trustedGroupedEdit?stripPlatformNumericFormatting(raw):raw;
+  const isValid=candidate.trim()===''||Number.isFinite(platformMoney(candidate));
   input.dataset.invalidMoney=String(!isValid);
   if(document.activeElement===input){
-    // Never insert thousands separators between keystrokes on a mobile keyboard.
-    // Valid pasted US-grouped text is ungrouped for editing; malformed paste
-    // remains invalid rather than being silently reinterpreted.
-    if(isValid&&raw.includes(',')){
-      input.value=stripPlatformNumericFormatting(raw);
+    // Keep live mobile edits ungrouped; format as US thousands only on blur.
+    if(isValid&&candidate.includes(',')){
+      input.value=stripPlatformNumericFormatting(candidate);
+      syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
+    }else if(trustedGroupedEdit){
+      input.value=candidate;
       syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
     }
     return;
   }
-  input.value=formatPlatformIntegerInputValue(raw,config.allowEmpty);
+  input.value=formatPlatformIntegerInputValue(candidate,config.allowEmpty);
   syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
 }
 function formatPlatformTransactionInputElement(input,editContext){
@@ -3433,16 +3445,14 @@ function bindPlatformIntegerMoneyInputs(){
   PFC_INTEGER_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
+    // Do not rewrite the value during focus: it breaks text selection and
+    // select-all/paste on some Android keyboards and Playwright fill().
+    input.addEventListener('beforeinput',function(event){
+      this._platformAnnualBeforeInput={value:this.value,type:event.inputType||'',data:event.data};
+    });
     input.addEventListener('focus',function(){
       const currentValue=readPlatformIntegerInput(this);
-      if(currentValue===0){
-        this.value='';
-      }else if(Number.isFinite(currentValue)&&this.value.includes(',')){
-        const caret=typeof this.selectionStart==='number'?this.selectionStart:this.value.length;
-        const digitsBeforeCaret=this.value.slice(0,caret).replace(/\D/g,'').length;
-        this.value=stripPlatformNumericFormatting(this.value);
-        syncPlatformIntegerInputCaret(this,digitsBeforeCaret);
-      }
+      if(currentValue===0)this.value='';
     });
     input.addEventListener('blur',function(){
       const raw=stripPlatformNumericFormatting(this.value);
