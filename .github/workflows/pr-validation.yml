@@ -46,6 +46,17 @@ jobs:
           ln -s "$TAX_EXPORT_LIB_DIR/html2canvas/dist/html2canvas.min.js" "$IGP_EXPORT_LIB_DIR/html2canvas.js"
           ln -s "$TAX_EXPORT_LIB_DIR/jspdf/dist/jspdf.umd.min.js" "$IGP_EXPORT_LIB_DIR/jspdf.js"
           node -e 'require("node:fs").appendFileSync(process.env.GITHUB_ENV, "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=" + require("playwright").chromium.executablePath() + "\n")'
+      - name: Platform Fee financial states, integrations and actual exports
+        env:
+          PFC_ARTIFACT_DIR: ${{ runner.temp }}/release-evidence/platform
+        run: |
+          node tests/platform-fee-remediation.playwright.js | tee "$RUNNER_TEMP/release-evidence/platform-browser.log"
+          node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/platform-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
+          python3 -m http.server 4173 --bind 127.0.0.1 > "$RUNNER_TEMP/release-evidence/platform-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in {1..50}; do curl --fail --silent http://127.0.0.1:4173/platform-fee-calculator.html -o /dev/null && break; sleep 0.1; done
+          node tests/platform-fee-caret.playwright.js | tee "$RUNNER_TEMP/release-evidence/platform-caret.log"
       - name: Hourly Rate input integrity and native exports
         run: |
           node tests/hourly-rate.playwright.js | tee "$RUNNER_TEMP/release-evidence/hourly-browser.log"
