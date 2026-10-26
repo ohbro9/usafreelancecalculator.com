@@ -3164,7 +3164,15 @@ function setPlatformIntegerInputValue(inputOrId,value){
   const config=getPlatformIntegerInputConfig(input);
   // A live annual edit must not be regrouped by the shared-profile render.
   if(document.activeElement===input)return;
-  if(input.dataset.invalidMoney==='true'&&!Number.isFinite(Number(value)))return;
+  if(value!==null&&!Number.isFinite(Number(value))){
+    // Preserve the user's invalid raw edit; don't print "NaN" into the other
+    // mode's mirrored annual field while the shared tax profile is invalid.
+    if(input.dataset.invalidMoney!=='true'){
+      input.value='';
+      input.dataset.invalidMoney='true';
+    }
+    return;
+  }
   input.dataset.invalidMoney='false';
   input.value=formatPlatformIntegerInputValue(value,config.allowEmpty);
 }
