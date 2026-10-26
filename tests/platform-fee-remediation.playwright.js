@@ -122,12 +122,12 @@ for(const [scope,width] of [['fwd',390],['rev',360]])test(`Mobile annual money g
   await expenses.blur();assert.equal(await expenses.inputValue(),'16,000');
   assert.equal(await p.locator('#'+scope+'TaxBasisValue').textContent(),'$80,000.00');
   assert.ok(await result(p),'valid shared Smart profile should calculate');
-  if(scope==='fwd')assert.equal((await result(p)).finalTakeHome,672.87);
+  if(scope==='fwd')assert.equal((await data(p)).finalTakeHome,672.87);
   else{
     await p.locator('#revGoalTypeChips [data-goal="after_tax"]').click();
     assert.equal((await result(p)).clientPays,1486.17);
   }
-  await income.focus();assert.equal(await income.inputValue(),'96000','focus ungroups for editing');
+  await income.focus();assert.equal(await income.inputValue(),'96,000','focus must preserve selection-safe grouped value');
   await income.press('End');await income.press('0');
   assert.equal(await income.inputValue(),'960000','append to former grouped amount is valid');
   await income.press('Backspace');await income.blur();assert.equal(await income.inputValue(),'96,000');
