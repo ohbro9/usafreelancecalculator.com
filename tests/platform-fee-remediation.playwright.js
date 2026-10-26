@@ -174,6 +174,11 @@ test('Round 2 R1 inactive reserve invalidity persists through mode switching and
  await p.locator('#tabClient').click();assert.ok(await result(p));await p.reload();assert.ok(await result(p));await p.locator('#tabNet').click();assert.equal(await result(p),null);
  await p.locator('#revCustomTaxPct').fill('0');assert.ok(await result(p));
 });
+for(const field of ['customFeeInput','prPct'])test(`Round 2 R1 unsupported complete exponent stays invalid after reload: ${field}`,async p=>{
+ if(field==='customFeeInput')await custom(p,12);else{await p.locator('#procToggle').check();await p.locator('details').first().evaluate(e=>e.open=true);}
+ const input=p.locator('#'+field);await input.fill('');await input.pressSequentially('1e-3');assert.equal(await input.evaluate(e=>e.validity.badInput),false);assert.equal(await result(p),null);await p.reload();assert.equal(await result(p),null,'unsupported exponent must not be serialized as a valid decimal');
+ if(field==='prPct')await p.locator('details').first().evaluate(e=>e.open=true);await p.locator('#'+field).fill('0');assert.ok(await result(p));
+});
 test('Round 2 R2 all chart legends and segments share canonical composition',async p=>{
  await custom(p,12);
  for(const mode of ['client','net'])for(const tax of ['off','manual','smart'])for(const goal of (mode==='net'?['before_tax','after_tax']:['before_tax'])){

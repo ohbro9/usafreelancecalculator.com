@@ -4708,7 +4708,7 @@ function save(){
   try{
     localStorage.setItem('pfcState',JSON.stringify({
       mode,
-      invalidNumericInputs:Array.from(document.querySelectorAll('#pfcApp input[type=number]')).filter(input=>platformNativeInputInvalid(input)).map(input=>input.id),
+      invalidNumericInputs:Array.from(document.querySelectorAll('#pfcApp input[type=number]')).filter(input=>platformRawNumericInvalid(input)).map(input=>input.id),
       importContext:_toolkitImportState,
       amtGross:$('amtGross').value,
       amtNet:$('amtNet').value,
@@ -5394,6 +5394,13 @@ function activePlatformNumericFields(){
 function platformNativeInputInvalid(input){
   return input.validity.badInput||input.dataset.nativeInvalid==='true';
 }
+function platformRawNumericInvalid(input){
+  if(platformNativeInputInvalid(input))return true;
+  const percent=['customFeeInput','prPct','fwdCustomTaxPct','revCustomTaxPct'].includes(input.id);
+  // A genuinely blank optional percentage retains its existing zero/default policy;
+  // native incomplete text is distinguished above. Validate all other syntax before Number.
+  return percent?!/^\d*(?:\.\d{0,4})?$/.test(input.value):!Number.isFinite(platformMoney(input.value));
+}
 function platformReserveInputValid(input){
   return !platformNativeInputInvalid(input)&&/^\d*(?:\.\d{0,4})?$/.test(input.value)&&Number(input.value)>=0&&Number(input.value)<99;
 }
@@ -5430,7 +5437,7 @@ function requirePlatformResult(){calc();return !!window.__pfcResult;}
 /* ══ CALC ══ */
 function calc(){
   trackPlatformCalculationRevision();
-  const nativeInvalid=activePlatformNumericFields().filter(id=>platformNativeInputInvalid($(id)));
+  const nativeInvalid=activePlatformNumericFields().filter(id=>platformRawNumericInvalid($(id)));
   if(nativeInvalid.length){
     $('customFeePanel').style.display=getChipName()==='Custom'?'block':'none';
     renderForwardTaxControls();renderReverseTaxControls();
