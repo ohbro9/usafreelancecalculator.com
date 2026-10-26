@@ -105,6 +105,53 @@ test('raw invalid annual and custom tax inputs cannot be silently clamped into s
  await val(p,'fwdAnnualIncome','-100');assert.equal(await result(p),null);
  await val(p,'fwdAnnualIncome','96000');assert.equal((await result(p)).clientPays,1000);
 });
+for(const [scope,width] of [['fwd',390],['rev',360]])test(`Mobile annual money grouping, Smart recovery and safe summaries: ${scope} ${width}px`,async p=>{
+  await p.setViewportSize({width,height:width===390?844:800});
+  await custom(p,12);
+  if(scope==='fwd')await p.locator('#fwdTaxChips [data-mode="smart"]').click();
+  else{await p.locator('#tabNet').click();await p.locator('#revTaxChips [data-mode="smart"]').click();}
+  const panel=p.locator('#'+scope+'TaxAssumptionsPanel');
+  if(!await panel.evaluate(e=>e.classList.contains('show')))await p.locator('#'+scope+'TaxAssumptionsBtn').click();
+  const income=p.locator('#'+scope+'AnnualIncome'),expenses=p.locator('#'+scope+'AnnualExpenses');
+  await income.fill('');await income.pressSequentially('96000');
+  assert.equal(await income.inputValue(),'96000','do not insert commas during keyboard typing');
+  assert.equal(await p.locator('#'+scope+'TaxIncomeValue').textContent(),'$96,000.00');
+  await income.blur();assert.equal(await income.inputValue(),'96,000');
+  await expenses.fill('');await expenses.pressSequentially('16000');
+  assert.equal(await expenses.inputValue(),'16000','expense entry must stay ungrouped until blur');
+  await expenses.blur();assert.equal(await expenses.inputValue(),'16,000');
+  assert.equal(await p.locator('#'+scope+'TaxBasisValue').textContent(),'$80,000.00');
+  assert.ok(await result(p),'valid shared Smart profile should calculate');
+  if(scope==='fwd')assert.equal((await data(p)).finalTakeHome,672.87);
+  else{
+    await p.locator('#revGoalTypeChips [data-goal="after_tax"]').click();
+    assert.equal((await result(p)).clientPays,1486.17);
+  }
+  await income.focus();assert.equal(await income.inputValue(),'96,000','focus must preserve selection-safe grouped value');
+  await income.press('End');await income.press('0');
+  assert.equal(await income.inputValue(),'960000','append to former grouped amount is valid');
+  await income.press('Backspace');await income.blur();assert.equal(await income.inputValue(),'96,000');
+  await income.fill('9,6000');
+  assert.equal(await income.inputValue(),'9,6000','malformed paste remains visibly invalid');
+  assert.equal(await result(p),null,'invalid grouped input blocks calculations');
+  for(const id of ['TaxIncomeValue','TaxExpensesValue','TaxBasisValue'])assert.doesNotMatch(await p.locator('#'+scope+id).textContent(),/NaN/i);
+  const otherScope=scope==='fwd'?'rev':'fwd';
+  assert.notEqual(await p.locator('#'+otherScope+'AnnualIncome').inputValue(),'NaN','shared invalid profile must not print NaN in the opposite mode');
+  assert.equal(await p.locator('#'+scope+'ExpenseQuickChips .wd-chip').first().getAttribute('aria-disabled'),'true');
+  await income.blur();assert.equal(await income.inputValue(),'9,6000');
+  await income.fill('96000');await income.blur();assert.equal(await income.inputValue(),'96,000');
+  assert.ok(await result(p),'correcting invalid input recovers');
+  await expenses.fill('1,6000');
+  assert.equal(await result(p),null,'malformed expenses must block Smart tax');
+  assert.doesNotMatch(await p.locator('#'+scope+'TaxExpensesValue').textContent(),/NaN/i);
+  await expenses.fill('16000');await expenses.blur();
+  assert.equal(await expenses.inputValue(),'16,000');
+  assert.ok(await result(p),'correcting expenses also recovers');
+  await p.reload();
+  assert.equal(await p.locator('#'+scope+'AnnualIncome').inputValue(),'96,000');
+  assert.equal(await p.locator('#'+scope+'AnnualExpenses').inputValue(),'16,000');
+  assert.ok(await result(p),'annual settings and result survive reload');
+});
 test('S7 native keyboard modes/platform/tax/send selections have accessible states',async p=>{
  for(const [selector,key] of [['#tabNet','Enter'],['[data-name="Fiverr"]','Space'],['#revTaxChips [data-pct="25"]','Enter'],['#sntChipClient','Space']]){
   const e=p.locator(selector);assert.equal(await e.evaluate(e=>e.tagName),'BUTTON');await e.focus();await e.press(key);assert.equal(await e.getAttribute('aria-pressed'),'true');

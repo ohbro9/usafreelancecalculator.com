@@ -3162,7 +3162,17 @@ function setPlatformIntegerInputValue(inputOrId,value){
   const input=typeof inputOrId==='string'?$(inputOrId):inputOrId;
   if(!input)return;
   const config=getPlatformIntegerInputConfig(input);
-  if(input.dataset.invalidMoney==='true'&&!Number.isFinite(Number(value)))return;
+  // A live annual edit must not be regrouped by the shared-profile render.
+  if(document.activeElement===input)return;
+  if(value!==null&&!Number.isFinite(Number(value))){
+    // Preserve the user's invalid raw edit; don't print "NaN" into the other
+    // mode's mirrored annual field while the shared tax profile is invalid.
+    if(input.dataset.invalidMoney!=='true'){
+      input.value='';
+      input.dataset.invalidMoney='true';
+    }
+    return;
+  }
   input.dataset.invalidMoney='false';
   input.value=formatPlatformIntegerInputValue(value,config.allowEmpty);
 }
@@ -3307,8 +3317,31 @@ function formatPlatformIntegerInputElement(input){
   const raw=input.value||'';
   const selectionStart=typeof input.selectionStart==='number'?input.selectionStart:raw.length;
   const digitsBeforeCaret=raw.slice(0,selectionStart).replace(/[^\d]/g,'').length;
-  input.dataset.invalidMoney=String(raw.trim()!==''&&!Number.isFinite(platformMoney(raw)));
-  input.value=formatPlatformIntegerInputValue(raw,config.allowEmpty);
+  const prior=input._platformAnnualBeforeInput;
+  input._platformAnnualBeforeInput=null;
+  const trustedGroupedEdit=prior&&Number.isFinite(platformMoney(prior.value))
+    &&prior.value.includes(',')
+    &&/^(insertText|deleteContentBackward|deleteContentForward)$/.test(prior.type)
+    &&(prior.type.startsWith('delete')||/^\d+$/.test(prior.data||''))
+    &&/^[\d,]+$/.test(raw);
+  // A genuine numeric edit to an already grouped value may temporarily
+  // produce 9,6000; remove separators only for that proven edit path.
+  // Arbitrary malformed pasted text remains invalid.
+  const candidate=trustedGroupedEdit?stripPlatformNumericFormatting(raw):raw;
+  const isValid=candidate.trim()===''||Number.isFinite(platformMoney(candidate));
+  input.dataset.invalidMoney=String(!isValid);
+  if(document.activeElement===input){
+    // Keep live mobile edits ungrouped; format as US thousands only on blur.
+    if(isValid&&candidate.includes(',')){
+      input.value=stripPlatformNumericFormatting(candidate);
+      syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
+    }else if(trustedGroupedEdit){
+      input.value=candidate;
+      syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
+    }
+    return;
+  }
+  input.value=formatPlatformIntegerInputValue(candidate,config.allowEmpty);
   syncPlatformIntegerInputCaret(input,digitsBeforeCaret);
 }
 function formatPlatformTransactionInputElement(input,editContext){
@@ -3412,11 +3445,14 @@ function bindPlatformIntegerMoneyInputs(){
   PFC_INTEGER_MONEY_INPUT_IDS.forEach(function(id){
     const input=$(id);
     if(!input)return;
+    // Do not rewrite the value during focus: it breaks text selection and
+    // select-all/paste on some Android keyboards and Playwright fill().
+    input.addEventListener('beforeinput',function(event){
+      this._platformAnnualBeforeInput={value:this.value,type:event.inputType||'',data:event.data};
+    });
     input.addEventListener('focus',function(){
       const currentValue=readPlatformIntegerInput(this);
-      if(currentValue===0){
-        this.value='';
-      }
+      if(currentValue===0)this.value='';
     });
     input.addEventListener('blur',function(){
       const raw=stripPlatformNumericFormatting(this.value);
@@ -4010,14 +4046,18 @@ function formatPlatformQuickDollarShort(value){
   }
   return fmt(amount);
 }
+function formatPlatformAnnualReadout(value,emptyLabel='—'){
+  if(value===null)return emptyLabel;
+  return Number.isFinite(value)?fmt(value):'Invalid amount';
+}
 function formatPlatformExpenseQuickChipLabel(pct,income){
   const rate=Math.max(0,Number(pct)||0);
-  if(income===null||income<=0)return rate+'%';
+  if(!Number.isFinite(income)||income<=0)return rate+'%';
   return rate+'% ('+formatPlatformQuickDollarShort(roundMoney(income*(rate/100)))+')';
 }
 function getPlatformExpenseQuickHintText(scope,income){
   const key=scope==='rev'?'rev':'fwd';
-  if(income===null||income<=0){
+  if(!Number.isFinite(income)||income<=0){
     return platformTaxQuickHintState[key]==='pick_income'
       ?'Pick income first to auto-fill expense amount.'
       :'Pick an income first, then expense chips can auto-fill a percentage.';
@@ -4042,10 +4082,11 @@ function syncPlatformTaxQuickPickUi(scope,profile){
     expenseWrap.querySelectorAll('.wd-chip[data-expense-pct]').forEach(chip=>{
       const pct=Math.max(0,Number(chip.dataset.expensePct)||0);
       chip.textContent=formatPlatformExpenseQuickChipLabel(pct,incomeValue);
-      const targetExpense=incomeValue===null?null:roundMoney(incomeValue*(pct/100));
-      chip.classList.toggle('active',incomeValue!==null&&expenseValue===targetExpense);
-      chip.classList.toggle('disabled',incomeValue===null);
-      chip.setAttribute('aria-disabled',incomeValue===null?'true':'false');
+      const readyIncome=Number.isFinite(incomeValue)&&incomeValue>0;
+      const targetExpense=readyIncome?roundMoney(incomeValue*(pct/100)):null;
+      chip.classList.toggle('active',readyIncome&&expenseValue===targetExpense);
+      chip.classList.toggle('disabled',!readyIncome);
+      chip.setAttribute('aria-disabled',readyIncome?'false':'true');
     });
   }
   if(hintEl){
@@ -4069,7 +4110,7 @@ function handlePlatformExpenseQuickPick(scope,pct){
   if(!PLATFORM_TAX_QUICK_EXPENSE_PCTS.includes(rate))return;
   const profile=getPlatformAnnualTaxProfile();
   const key=scope==='rev'?'rev':'fwd';
-  if(profile.annualIncome===null||profile.annualIncome<=0){
+  if(!Number.isFinite(profile.annualIncome)||profile.annualIncome<=0){
     platformTaxQuickHintState[key]='pick_income';
     syncPlatformTaxQuickPickUi(key,profile);
     return;
@@ -4432,10 +4473,10 @@ function renderForwardTaxControls(model){
   const derivedHintEl=$('fwdDerivedProfitHint');
   const setupEl=$('fwdTaxSetupSummary');
   const helperEl=$('fwdTaxHelper');
-  if(incomeEl)incomeEl.textContent=sharedProfile.annualIncome===null?'Add income':fmt(sharedProfile.annualIncome);
-  if(expensesEl)expensesEl.textContent=fmt(sharedProfile.annualExpenses);
-  if(basisEl)basisEl.textContent=fmt(sharedProfile.annualProfit);
-  if(derivedEl)derivedEl.textContent=sharedProfile.annualIncome===null?'Add annual income to derive profit':fmt(sharedProfile.annualProfit);
+  if(incomeEl)incomeEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualIncome,'Add income');
+  if(expensesEl)expensesEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualExpenses);
+  if(basisEl)basisEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualProfit);
+  if(derivedEl)derivedEl.textContent=sharedProfile.annualIncome===null?'Add annual income to derive profit':formatPlatformAnnualReadout(sharedProfile.annualProfit);
   if(derivedHintEl)derivedHintEl.textContent=sharedProfile.annualIncome===null
     ?'Add annual income first. Smart tax will then derive profit after business expenses.'
     :'Derived automatically from annual income minus business expenses.';
@@ -4605,10 +4646,10 @@ function renderReverseTaxControls(model){
   const setupEl=$('revTaxSetupSummary');
   const helperEl=$('revTaxHelper');
   if(goalEl)goalEl.textContent=formatGoalTypeLabel(revGoalType);
-  if(incomeEl)incomeEl.textContent=sharedProfile.annualIncome===null?'Add income':fmt(sharedProfile.annualIncome);
-  if(expensesEl)expensesEl.textContent=fmt(sharedProfile.annualExpenses);
-  if(basisEl)basisEl.textContent=fmt(sharedProfile.annualProfit);
-  if(derivedEl)derivedEl.textContent=sharedProfile.annualIncome===null?'Add annual income to derive profit':fmt(sharedProfile.annualProfit);
+  if(incomeEl)incomeEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualIncome,'Add income');
+  if(expensesEl)expensesEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualExpenses);
+  if(basisEl)basisEl.textContent=formatPlatformAnnualReadout(sharedProfile.annualProfit);
+  if(derivedEl)derivedEl.textContent=sharedProfile.annualIncome===null?'Add annual income to derive profit':formatPlatformAnnualReadout(sharedProfile.annualProfit);
   if(derivedHintEl)derivedHintEl.textContent=sharedProfile.annualIncome===null
     ?'Add annual income first. Reverse smart tax will then derive profit after business expenses.'
     :'Shared with Client Pays mode and derived automatically from annual income minus business expenses.';
