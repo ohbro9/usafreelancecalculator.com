@@ -4098,6 +4098,7 @@
               sourceLabel: state.toolkitContext.sourceLabel,
               label: state.toolkitContext.label,
               period: state.toolkitContext.period,
+              originalPeriod: state.toolkitContext.originalPeriod,
               kind: state.toolkitContext.kind,
               amount: state.toolkitContext.amount,
               grossAnnual: state.toolkitContext.grossAnnual,
@@ -4330,6 +4331,7 @@
 	          sourceLabel: String(raw.sourceLabel || getToolkitSourceLabel(raw.sourceTool || '')).trim(),
 	          label: String(raw.label || 'Imported Gross').trim() || 'Imported Gross',
 	          period,
+              originalPeriod: normalizeToolkitPeriod(raw.originalPeriod || raw.period),
 	          kind: String(raw.kind || 'gross').trim() || 'gross',
 	          amount: amount > 0 ? amount : (period === 'month' ? grossMonthly : grossAnnual),
 	          grossAnnual,
@@ -4350,12 +4352,12 @@
 	        const normalized = session.normalized && typeof session.normalized === 'object' ? session.normalized : {};
 	        const assumptions = session.assumptions && typeof session.assumptions === 'object' ? session.assumptions : {};
 	        const grossAnnual = roundToolkitMoney(
-	          normalized.annualGross > 0
+	          kind === 'gross' && normalized.annualGross > 0
 	            ? normalized.annualGross
 	            : (kind === 'gross' ? deriveToolkitAnnualGross(amount, period, assumptions) : 0)
 	        );
 	        const grossMonthly = roundToolkitMoney(
-	          normalized.monthlyGross > 0
+	          kind === 'gross' && normalized.monthlyGross > 0
 	            ? normalized.monthlyGross
 	            : (grossAnnual > 0 ? grossAnnual / 12 : (period === 'month' && kind === 'gross' ? amount : 0))
 	        );
@@ -4365,6 +4367,7 @@
 	          sourceLabel: getToolkitSourceLabel(session.sourceTool || ''),
 	          label: String(handoff.label || 'Imported Gross').trim() || 'Imported Gross',
 	          period,
+              originalPeriod: normalizeToolkitPeriod(assumptions.incomeOriginalPeriod || period),
 	          kind,
 	          amount,
 	          grossAnnual,
@@ -4474,6 +4477,7 @@
 	          sourceLabel: pending.sourceLabel,
 	          label: pending.label,
 	          period: pending.period,
+              originalPeriod: pending.originalPeriod,
 	          kind: pending.kind,
 	          amount: pending.amount,
 	          grossAnnual: pending.grossAnnual,
@@ -4524,6 +4528,7 @@
 	          sourceLabel: pending.sourceLabel,
 	          label: pending.label,
 	          period: pending.period,
+              originalPeriod: pending.originalPeriod,
 	          kind: pending.kind,
 	          amount: pending.amount,
 	          grossAnnual: pending.grossAnnual,
@@ -4568,16 +4573,18 @@
 	        ui.toolkitGoalBtn.classList.remove('is-hidden');
 	        ui.toolkitDismissBtn.classList.remove('is-hidden');
 	        ui.toolkitGoalBtn.disabled = false;
+	        ui.toolkitBaselineBtn.disabled = false;
 
 	        if (pending) {
-	          ui.toolkitImportKicker.textContent = 'Imported Gross Context';
+	          ui.toolkitImportKicker.textContent = pending.kind === 'gross' ? 'Imported Gross Context' : 'Imported Amount Context';
 	          ui.toolkitImportTitle.textContent = `Imported ${fmtUSD(pending.amount)}/${getToolkitPeriodLabel(pending.period, true)} from ${pending.sourceLabel}`;
 	          ui.toolkitImportText.textContent = pending.kind === 'gross'
 	            ? 'Goal Planner keeps imported gross as context only. Use it as a baseline, or convert it into an equivalent take-home goal using this planner\'s current assumptions.'
-	            : 'This import is not tagged as gross income, so Goal Planner will keep it as context only until a clean gross amount is sent in.';
+	            : (pending.kind === 'pre_tax_after_fees' ? 'Platform fees are already deducted from this pre-tax amount. Keep it as context; do not apply platform fees again. Review the original income period before treating a payout as annual income.' : 'This import is after a planning reserve. Keep it as context, not original client gross.');
 	          ui.toolkitImportMeta.textContent = pending.kind === 'gross'
 	            ? 'Direct gross-to-goal pasting is blocked here to avoid double-tax confusion. "Use as goal" maps the imported gross into this planner\'s own take-home model.'
 	            : 'Use as baseline is available. To unlock goal sync, send a monthly or yearly gross amount from Tax Estimator.';
+              if (pending.originalPeriod && pending.originalPeriod !== pending.period) ui.toolkitImportMeta.textContent = 'Original source period: ' + pending.originalPeriod + '. Confirm the annual planning basis. ' + ui.toolkitImportMeta.textContent;
 	          ui.toolkitBaselineBtn.textContent = 'Use as Baseline';
 	          ui.toolkitGoalBtn.textContent = 'Use as Goal';
 	          ui.toolkitDismissBtn.textContent = 'Dismiss';
@@ -4589,9 +4596,11 @@
 	          ui.toolkitImportCard.classList.add('is-baseline');
 	          ui.toolkitImportKicker.textContent = 'Baseline Active';
 	          ui.toolkitImportTitle.textContent = `${fmtUSD(context.amount)}/${getToolkitPeriodLabel(context.period, true)} from ${context.sourceLabel}`;
-	          ui.toolkitImportText.textContent = 'Your main goal input stays untouched. This imported gross is only being used as a comparison baseline inside the planner.';
-	          ui.toolkitImportMeta.textContent = getToolkitGrossComparison(result, context, 'baseline');
+	          ui.toolkitImportText.textContent = context.kind === 'gross' ? 'Your main goal input stays untouched. This imported gross is only being used as a comparison baseline inside the planner.' : (context.kind === 'pre_tax_after_fees' ? 'Pre-tax amount after platform fees: fees are already deducted. Your goal stays unchanged; this is context only. Review the original income period.' : 'Amount after planning reserve: context only. Your goal stays unchanged.');
+	          ui.toolkitImportMeta.textContent = context.kind === 'gross' ? getToolkitGrossComparison(result, context, 'baseline') : 'Original client gross is not inferred. Gross-to-goal conversion is unavailable for this amount basis.';
 	          ui.toolkitBaselineBtn.textContent = 'Use as Goal';
+	        ui.toolkitBaselineBtn.disabled = context.kind !== 'gross';
+              if (context.originalPeriod && context.originalPeriod !== context.period) ui.toolkitImportMeta.textContent = 'Original source period: ' + context.originalPeriod + '. Confirm the annual planning basis. ' + ui.toolkitImportMeta.textContent;
 	          ui.toolkitGoalBtn.textContent = 'Clear Baseline';
 	          ui.toolkitDismissBtn.classList.add('is-hidden');
 	          ui.toolkitGoalBtn.disabled = false;

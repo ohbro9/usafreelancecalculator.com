@@ -247,7 +247,7 @@ for (const [expenseMode, first] of [['dollar', 'pre_tax_after_fees'], ['pct', 'g
       const saved = JSON.parse(localStorage.getItem('fte_v1_state'));
       return saved && Object.entries(expected).every(([key, value]) => saved[key] === value);
     }, settings);
-    const withoutIncome = ({incomeInput, incMode, ...rest}) => rest;
+    const withoutIncome = ({incomeInput, incMode, incomeBasis, ...rest}) => rest;
     for (const [index, kind] of [first, first === 'gross' ? 'pre_tax_after_fees' : 'gross', first].entries()) {
       if (index === 2) { // Reopen a persisted session before switching back.
         await page.reload({waitUntil:'domcontentloaded'});
@@ -258,6 +258,9 @@ for (const [expenseMode, first] of [['dollar', 'pre_tax_after_fees'], ['pct', 'g
       const amount = kind === 'gross' ? 60000 : 48000;
       const state = await assertImportedIncome(page, amount);
       assert.deepEqual(withoutIncome(state.saved), withoutIncome(settings));
+      assert.equal(state.saved.incomeBasis.kind, kind);
+      assert.equal(state.saved.incomeBasis.originalPeriod, 'project');
+      assert.equal(state.saved.incomeBasis.sourceTool, 'platform_fee');
       const expenses = expenseMode === 'pct' ? amount * .1 : 12000;
       near(state.result.expenses, expenses); near(state.result.netProfit, amount - expenses);
       assert.match(state.banner, new RegExp(kind === 'gross' ? '\\$60,000.*Client Pays' : '\\$48,000.*You Receive'));
@@ -266,7 +269,8 @@ for (const [expenseMode, first] of [['dollar', 'pre_tax_after_fees'], ['pct', 'g
     const finalAmount = first === 'gross' ? 60000 : 48000;
     await page.reload({waitUntil:'domcontentloaded'});
     await assertImportedIncome(page, finalAmount);
-    assert.equal(await page.locator('#importBanner').isVisible(), false); // A consumed import is not reapplied.
+    assert.equal(await page.locator('#importBanner').isVisible(), true); // Saved amount context is restored; the consumed import is not reapplied.
+    assert.match(await page.locator('#importBannerText').innerText(), /Review the period/);
   });
 }
 test('platform import: stale toolkit state cannot override gross when Tax Estimator storage is missing', async page => {
