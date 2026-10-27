@@ -269,7 +269,8 @@ for (const [expenseMode, first] of [['dollar', 'pre_tax_after_fees'], ['pct', 'g
     const finalAmount = first === 'gross' ? 60000 : 48000;
     await page.reload({waitUntil:'domcontentloaded'});
     await assertImportedIncome(page, finalAmount);
-    assert.equal(await page.locator('#importBanner').isVisible(), false); // A consumed import is not reapplied.
+    assert.equal(await page.locator('#importBanner').isVisible(), true); // Saved amount context is restored; the consumed import is not reapplied.
+    assert.match(await page.locator('#importBannerText').innerText(), /Review the period/);
   });
 }
 test('platform import: stale toolkit state cannot override gross when Tax Estimator storage is missing', async page => {
