@@ -3,14 +3,25 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium}=require('playwright');const root=path.resolve(__dirname,'..'),cases=[];const test=(name,run)=>cases.push({name,run});
 const frames=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 async function money(p,id,value){await p.locator('#'+id).focus();await p.locator('#'+id).fill(value);await frames(p);}
-async function advanced(p){if(await p.locator('#advToggleBtn').getAttribute('aria-expanded')!=='true')await p.locator('#advToggleBtn').click();}
+async function advanced(p){
+ const toggle=p.locator('#advToggleBtn');
+ // Keyboard activation is unaffected by the calculator's scheduled result auto-scroll.
+ if(await toggle.getAttribute('aria-expanded')!=='true')await toggle.press('Enter');
+ await p.waitForFunction(()=>document.getElementById('advToggleBtn').getAttribute('aria-expanded')==='true');
+}
+async function activate(p,id){
+ const control=p.locator('#'+id);
+ if(await control.getAttribute('aria-checked')!=='true')await control.press('Space');
+ await p.waitForFunction(id=>document.getElementById(id).getAttribute('aria-checked')==='true',id);
+ await frames(p);
+}
 async function setup(p){await money(p,'incomeInput','100000');await advanced(p);}
 for(const [field,toggle,value]of [['w2Input','w2Sw','80000oops'],['expInput',null,'12,34'],['retireInput','retireSw','1e4'],['mortgageInterestInput','itemizedSw','-100'],['sCorpSalaryInput','sCorpSw','Infinity'],['statePct','stateSw','1.2.3'],['dependentsInput',null,'1.5'],['withholdingInput',null,'9oops']]){
- test('TAX01 active '+field+' survives blur and blocks results',async p=>{await setup(p);if(toggle)await p.locator('#'+toggle).click();await money(p,field,value);await p.locator('#'+field).press('Tab');await frames(p);const r=await p.evaluate(id=>({result:window._lastResult,raw:document.getElementById(id).value,invalid:document.getElementById(id).getAttribute('aria-invalid'),summary:document.getElementById('financialValidation')?.innerText}),field);assert.equal(r.result.valid,false);assert.equal(r.raw,value);assert.equal(r.invalid,'true');assert.ok(r.summary);});
+ test('TAX01 active '+field+' survives blur and blocks results',async p=>{await setup(p);if(toggle)await activate(p,toggle);await money(p,field,value);await p.locator('#'+field).press('Tab');await frames(p);const r=await p.evaluate(id=>({result:window._lastResult,raw:document.getElementById(id).value,invalid:document.getElementById(id).getAttribute('aria-invalid'),summary:document.getElementById('financialValidation')?.innerText}),field);assert.equal(r.result.valid,false);assert.equal(r.raw,value);assert.equal(r.invalid,'true');assert.ok(r.summary);});
 }
 for(const [field,toggle]of [['dependentsInput',null],['statePct','stateSw']]){
  test('TAX01 grouped '+field+' cannot pass validation and calculate a numeric prefix',async p=>{
-  await setup(p);if(toggle)await p.locator('#'+toggle).click();await money(p,field,'0,010');
+  await setup(p);if(toggle)await activate(p,toggle);await money(p,field,'0,010');
   assert.equal(await p.evaluate(()=>window._lastResult.valid),false);
   const blocked=await p.evaluate(async()=>{let copied='',downloads=0;Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText(t){copied=t;return Promise.resolve()}}});HTMLAnchorElement.prototype.click=function(){downloads++};copySummary();downloadPDF();await downloadImage();goNextTool();return {copied,downloads,session:UFCToolkit.readSession()}});
   assert.deepEqual(blocked,{copied:'',downloads:0,session:null});
