@@ -2108,6 +2108,115 @@
   .pfc-seo-card ul,.pfc-seo-card ol{margin:9px 0 0 20px;display:grid;gap:6px;}
   .pfc-seo-card a{color:var(--pfc-blue2);font-weight:800;text-underline-offset:3px;}
   .pfc-seo-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--pfc-muted2);font-weight:900;margin-bottom:7px;}
+
+  /* Official premium walkthrough: distinct from ordinary related articles. */
+  .pfc-featured-tutorial{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,300px);
+    align-items:center;
+    gap:22px;
+    padding:23px;
+    border:1px solid var(--pfc-line);
+    border-left:5px solid #ef8935;
+    border-radius:22px;
+    background:linear-gradient(115deg,rgba(239,137,53,.13),var(--pfc-shell) 67%,var(--pfc-panel));
+    box-shadow:var(--pfc-shadow-md);
+  }
+  .dark .pfc-featured-tutorial{
+    background:linear-gradient(115deg,rgba(239,137,53,.13),#172438 76%);
+  }
+  .pfc-featured-tutorial-kicker{
+    display:inline-block;
+    padding:5px 10px;
+    border:1px solid var(--pfc-line);
+    border-radius:999px;
+    background:var(--pfc-shell);
+    color:var(--pfc-text);
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+  }
+  .pfc-featured-tutorial h2{
+    margin:12px 0 10px;
+    font-size:clamp(21px,2.5vw,29px);
+    line-height:1.22;
+    letter-spacing:-.025em;
+    color:var(--pfc-text);
+  }
+  .pfc-featured-tutorial p{
+    margin:0 0 14px;
+    color:var(--pfc-muted);
+    font-size:14px;
+    line-height:1.7;
+  }
+  .pfc-featured-tutorial-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin:0 0 17px;
+  }
+  .pfc-featured-tutorial-tags span{
+    display:inline-flex;
+    align-items:center;
+    min-height:28px;
+    padding:6px 10px;
+    border:1px solid var(--pfc-line);
+    border-radius:999px;
+    background:var(--pfc-shell);
+    color:var(--pfc-text);
+    font-size:11px;
+    line-height:1.3;
+    font-weight:750;
+  }
+  .pfc-featured-tutorial-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:46px;
+    gap:10px;
+    padding:11px 17px;
+    border-radius:11px;
+    background:linear-gradient(115deg,#ef8935,#bf5b1e);
+    color:#fff!important;
+    font-size:13px;
+    line-height:1.4;
+    font-weight:850;
+    text-decoration:none;
+    box-shadow:0 8px 18px rgba(177,87,23,.17);
+  }
+  .pfc-featured-tutorial-link:hover{filter:brightness(1.06);}
+  .pfc-featured-tutorial-link:focus-visible,
+  .pfc-featured-tutorial-media:focus-visible{
+    outline:3px solid var(--pfc-blue);
+    outline-offset:4px;
+  }
+  .pfc-featured-tutorial-media{
+    display:block;
+    min-width:0;
+    padding:9px;
+    border:1px solid var(--pfc-line);
+    border-radius:16px;
+    background:var(--pfc-shell);
+    text-decoration:none;
+    box-shadow:0 9px 20px rgba(12,35,69,.08);
+  }
+  .pfc-featured-tutorial-media img{
+    display:block;
+    width:100%;
+    height:auto;
+    border-radius:9px;
+  }
+  @media(max-width:760px){
+    .pfc-featured-tutorial{grid-template-columns:minmax(0,1fr);gap:15px;padding:17px;}
+    .pfc-featured-tutorial h2{font-size:23px;}
+    .pfc-featured-tutorial-media{max-width:490px;}
+  }
+  @media(max-width:390px){
+    .pfc-featured-tutorial-link{width:100%;}
+    .pfc-featured-tutorial h2{font-size:21px;}
+  }
+
   .pfc-seo-example{font-variant-numeric:tabular-nums;}
   .pfc-seo-source-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .pfc-seo-source-list a{display:inline-flex;min-height:34px;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid var(--pfc-line);background:var(--pfc-panel);font-size:11px;text-decoration:none;}
@@ -2922,6 +3031,25 @@
           <li>Review the live result, comparison, and next-tool handoff before using the number in a quote or plan.</li>
         </ol>
       </article>
+
+
+      <!-- Featured official calculator tutorial; supporting articles remain separate below. -->
+      <aside class="pfc-featured-tutorial" aria-labelledby="pfc-featured-tutorial-title">
+        <div class="pfc-featured-tutorial-body">
+          <span class="pfc-featured-tutorial-kicker">Official step-by-step calculator tutorial</span>
+          <h2 id="pfc-featured-tutorial-title">New to platform fees? See exactly what you keep—and what to charge.</h2>
+          <p>Follow the real calculator from Client Pays to I Want to Keep, with worked Fiverr and custom-fee examples. Learn reverse quotes, Smart Tax reserves, platform comparisons, and how to download actual PDF/PNG reports.</p>
+          <div class="pfc-featured-tutorial-tags" aria-label="Inside the guide">
+            <span>Real screenshots</span>
+            <span>Forward + reverse pricing</span>
+            <span>PDF &amp; PNG examples</span>
+          </div>
+          <a class="pfc-featured-tutorial-link" href="https://blog.usafreelancecalculator.com/2026/10/how-to-use-freelance-platform-fee-calculator.html">Read the complete tutorial <span aria-hidden="true">↗</span></a>
+        </div>
+        <a class="pfc-featured-tutorial-media" href="https://blog.usafreelancecalculator.com/2026/10/how-to-use-freelance-platform-fee-calculator.html" aria-label="Open the official Platform Fee Calculator step-by-step tutorial">
+          <img src="assets/guides/platform-fee-2026/usafc-v06-comparison-retained-detail.webp" alt="Original calculator screenshot showing the retained-amount column in a platform comparison." width="640" height="756" loading="lazy" decoding="async">
+        </a>
+      </aside>
 
       <article class="pfc-seo-card" aria-labelledby="platform-guides-title">
         <h2 id="platform-guides-title">Platform Fee Guides</h2>
