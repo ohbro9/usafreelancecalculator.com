@@ -80,6 +80,11 @@ jobs:
           set -euo pipefail
           node tests/tax-estimator-safety.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-safety.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-safety.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
+      - name: Tax Estimator reporting, controls and amount provenance
+        run: |
+          set -euo pipefail
+          node tests/tax-estimator-reporting.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-reporting.log"
+          node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-reporting.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Income Goal Planner and native exports
         run: |
           set -euo pipefail

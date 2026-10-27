@@ -1348,7 +1348,7 @@
              aria-label="Gross income amount" autocomplete="off"
              onfocus="onMoneyFocus(this)"
              onblur="onMoneyBlur(this)"
-             oninput="validateNumInput(this); scheduleCalc()"/>
+             oninput="clearIncomeBasis(); validateNumInput(this); scheduleCalc()"/>
     </div>
     <div class="smart-chips" id="incomeChips"></div>
     <div class="input-error-note" id="incomeInputErr">⚠ Numbers only — e.g. 85000</div>
@@ -1366,7 +1366,7 @@
     </div>
 
     <div style="margin-top:18px;">
-      <div class="card-label" style="margin-bottom:10px;">🧾 Business Expenses</div>
+      <div class="card-label" style="margin-bottom:10px;">🧾 Annual Business Expenses</div>
       <div class="toggle-row">
         <div class="toggle-pill">
           <button type="button" id="expDollarBtn" class="active" onclick="setExpMode('dollar')">$ Amount</button>
@@ -1376,7 +1376,7 @@
       <div class="input-wrap" id="expInputWrap">
         <span class="input-prefix">$</span>
         <input type="text" id="expInput" placeholder="0" inputmode="decimal"
-               aria-label="Business expenses" autocomplete="off"
+               aria-label="Annual business expenses in dollars" autocomplete="off"
                onfocus="onMoneyFocus(this)"
                onblur="onMoneyBlur(this)"
                oninput="validateNumInput(this); scheduleCalc()"/>
@@ -1430,7 +1430,7 @@
           <div class="adv-field-label" style="margin-top:0;">Business W-2 Wages</div>
           <div class="input-wrap">
             <span class="input-prefix">$</span>
-            <input type="text" id="qbiWagesInput" placeholder="0" inputmode="decimal"
+            <input type="text" id="qbiWagesInput" aria-label="Annual qualified business W-2 wages" placeholder="0" inputmode="decimal"
                    onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                    oninput="validateNumInput(this); scheduleCalc()"/>
           </div>
@@ -1443,7 +1443,7 @@
           <div class="adv-field-label" style="margin-top:0;">Qualified Property Amount</div>
           <div class="input-wrap">
             <span class="input-prefix">$</span>
-            <input type="text" id="qbiUbiaInput" placeholder="0" inputmode="decimal"
+            <input type="text" id="qbiUbiaInput" aria-label="Qualified property amount (unadjusted basis)" placeholder="0" inputmode="decimal"
                    onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                    oninput="validateNumInput(this); scheduleCalc()"/>
           </div>
@@ -1491,7 +1491,7 @@
         <div class="smart-chips" id="retirePlanChips"></div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="retireInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="retireInput" aria-label="Annual retirement contribution" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1514,28 +1514,28 @@
         <div class="adv-field-label">State / Local Taxes Paid</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="saltPaidInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="saltPaidInput" aria-label="Annual state and local taxes paid" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="adv-field-label" style="margin-top:12px;">Mortgage Interest</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="mortgageInterestInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="mortgageInterestInput" aria-label="Annual eligible mortgage interest" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="adv-field-label" style="margin-top:12px;">Eligible Itemized Charitable Gifts</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="charityInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="charityInput" aria-label="Annual eligible charitable contributions" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="adv-field-label" style="margin-top:12px;">Medical Expenses</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="medicalInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="medicalInput" aria-label="Annual eligible medical expenses" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1567,7 +1567,7 @@
         <div class="smart-chips" id="sCorpSalaryChips"></div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="sCorpSalaryInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="sCorpSalaryInput" aria-label="Annual S-Corp owner salary" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="clearSCorpSalaryPresetChoice(); validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1575,7 +1575,7 @@
         <div class="smart-chips" id="sCorpAdminChips"></div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="sCorpAdminInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="sCorpAdminInput" aria-label="Annual S-Corp administration cost" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="clearSCorpAdminPresetChoice(); validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1601,7 +1601,7 @@
         <div class="smart-chips" id="w2Chips"></div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="w2Input" placeholder="0" inputmode="decimal"
+          <input type="text" id="w2Input" aria-label="Your annual W-2 wages" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1609,7 +1609,7 @@
           <div class="adv-field-label" style="margin-top:0;">Spouse W-2 Wages (Annual)</div>
           <div class="input-wrap">
             <span class="input-prefix">$</span>
-            <input type="text" id="spouseW2Input" placeholder="0" inputmode="decimal"
+            <input type="text" id="spouseW2Input" aria-label="Spouse annual W-2 wages" placeholder="0" inputmode="decimal"
                    onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                    oninput="validateNumInput(this); scheduleCalc()"/>
           </div>
@@ -1627,7 +1627,7 @@
         <div class="adv-field-label">Investment Income (Annual)</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="niitInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="niitInput" aria-label="Annual net investment income for NIIT" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1645,25 +1645,25 @@
       </div>
       <div class="adv-field" style="margin-top:10px;">
         <label class="adv-field-label" for="quarterlyModeInput">Quarterly Planning Target</label>
-        <select id="quarterlyModeInput" onchange="scheduleCalc()"><option value="full">Full annual federal tax reserve</option><option value="safe_harbor">Estimated federal safe harbor</option></select>
+        <select id="quarterlyModeInput" aria-label="Quarterly federal planning method" onchange="scheduleCalc()"><option value="full">Full annual federal tax reserve</option><option value="safe_harbor">Estimated federal safe harbor</option></select>
         <div class="adv-field-label" style="margin-top:12px;">Estimated Withholding (Annual)</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="withholdingInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="withholdingInput" aria-label="Annual estimated federal withholding" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="adv-field-label" style="margin-top:12px;">Prior-Year Total Tax</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="priorYearTaxInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="priorYearTaxInput" aria-label="Prior-year total federal tax" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
         <div class="adv-field-label" style="margin-top:12px;">Prior-Year Adjusted Gross Income (AGI)</div>
         <div class="input-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="priorYearAGIInput" placeholder="0" inputmode="decimal"
+          <input type="text" id="priorYearAGIInput" aria-label="Prior-year adjusted gross income" placeholder="0" inputmode="decimal"
                  onfocus="onMoneyFocus(this)" onblur="onMoneyBlur(this)"
                  oninput="validateNumInput(this); scheduleCalc()"/>
         </div>
@@ -1684,7 +1684,7 @@
         <div class="smart-chips" id="dependentChips"></div>
         <div class="stepper-wrap">
           <button type="button" class="step-btn" onclick="stepKids(-1)" aria-label="Decrease">−</button>
-          <input type="text" inputmode="numeric" id="dependentsInput" aria-label="Number of qualifying children for Child Tax Credit"
+          <input type="text" inputmode="numeric" id="dependentsInput" aria-label="Total eligible dependents, up to 10"
                  value="0" min="0" max="10" step="1" oninput="clampKids(); scheduleCalc()"/>
           <button type="button" class="step-btn" onclick="stepKids(1)" aria-label="Increase">+</button>
         </div>
@@ -1745,7 +1745,7 @@
           Effective Rate
           <span class="tooltip-wrap">
             <span class="tooltip-icon">?</span>
-            <span class="tooltip-box">Your avg tax rate across all income.<br>Always lower than your top bracket.</span>
+            <span class="tooltip-box">Total modeled annual taxes ÷ modeled annual income after business expenses, before retirement funding. Includes payroll and selected state taxes; not directly comparable with a federal marginal bracket.</span>
           </span>
         </div>
         <div class="out-meta-item-val gold" id="effectiveRateOut">—%</div>
@@ -1763,7 +1763,7 @@
     <div class="breakdown-title">💡 Tax Breakdown</div>
 
     <div class="bk-total-row" id="rowTotalTaxes" style="display:none;">
-      <span class="bk-total-label">Total Taxes Owed</span>
+      <span class="bk-total-label">Total Modeled Annual Taxes</span>
       <span class="bk-total-val" id="bkTotalTaxSum">$—</span>
     </div>
 
@@ -2429,6 +2429,10 @@ function onMoneyBlur(el) {
   scheduleCalc();
 }
 
+function clearIncomeBasis() {
+  appState.incomeBasis = null;
+  if ($('importBanner')) $('importBanner').classList.remove('show');
+}
 function validateNumInput(el) {
   const raw     = String(el.value);
   const invalid = raw.trim() !== '' && parseMoneyValue(raw) === null;
@@ -2721,6 +2725,7 @@ function getAllowedRetirementContribution(context, enteredAmount) {
 function setMoneyFieldValue(id, value, mode) {
   const el = $(id);
   if (!el) return;
+  if (id === 'incomeInput') clearIncomeBasis();
   if (mode === 'monthly') {
     el.value = Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   } else {
@@ -3112,6 +3117,9 @@ function getTaxScopeNotes(result) {
   if (result.investmentIncome > 0) notes.push('Investment input affects NIIT only; its regular income tax is excluded.');
   if (result.stateOn) notes.push('State is an approximation; state deductions, surtaxes and local taxes are excluded.');
   if (result.sCorpOn) notes.push('S-Corp salary, distributions and benefits require professional review. Include owner wages in business QBI wages; they are not added automatically.');
+  if (result.retireContrib > 0) notes.push(`You Keep is income after modeled taxes, before retirement funding. Modeled annual cash after the ${fmt(result.retireContrib)} contribution: ${fmt(result.takeHome - result.retireContrib)}. Retirement savings remain assets, not spending cash.`);
+  notes.push(`Total modeled annual taxes are not an outstanding IRS balance. Ordinary W-2 payroll taxes: ${fmt(result.w2PayrollTax || 0)} (already associated with wages). Federal income/SE/additional taxes after refundable credits, excluding ordinary W-2 payroll and state tax: ${fmt(result.federalEstimatedTaxLiability || 0)}. Estimated federal withholding: ${fmt(result.estimatedWithholding || 0)}. Selected annual federal planning reserve after withholding: ${fmt((result.quarterly || 0) * 4)}; actual payments and filing circumstances may differ.`);
+  if (appState.incomeBasis && appState.incomeBasis.kind === 'pre_tax_after_fees') notes.push('Business receipts were imported after platform fees; those fees are already deducted. Do not deduct them again. Original client gross is not inferred. Review the original income period before treating a payout as annual receipts.');
   if (result.retireOn) notes.push('Retirement assumes remaining eligible plan room; other-employer deferrals, catch-up and combined-plan rules are excluded.');
   if (result.dependents > 0) notes.push('Dependent eligibility is assumed. ACTC uses the ordinary earned-income method, excluding the three-child payroll alternative.');
   if (result.itemizedOn) notes.push('Gifts and mortgage interest must satisfy their eligibility, AGI and debt limits. Carryovers are excluded.');
@@ -3294,7 +3302,7 @@ function renderCTCAccuracyPrompt() {
 
   if (appState.ctcMode === 'mixed' && dependents > 0) {
     otherChipsEl.style.display = 'flex';
-    const maxOther = Math.min(3, dependents);
+    const maxOther = dependents;
     const chips = Array.from({ length: maxOther }, (_, i) => ({
       value: i + 1,
       label: `${i + 1} other dependent${i === 0 ? '' : 's'}`
@@ -3570,6 +3578,10 @@ function renderStatePresetChips() {
   }
   const sel = $('stateDropdown');
   const stateName = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].textContent : '';
+  if (['none', 'flat_state'].includes(getStateMeta(stateName).mode)) {
+    root.innerHTML = '';
+    return;
+  }
   const current = safe(parseFloat($('statePct').value) || 0);
   let chips;
   if (NO_INCOME_TAX_STATES.has(stateName)) {
@@ -3841,11 +3853,10 @@ function updateSNTHint() {
     el.textContent = 'Enter your income above to continue.';
     return;
   }
-  if (_sntPeriod === 'year') {
-    el.innerHTML = 'Next with gross amount of <b>Yearly</b> (' + fmtSNT(gross) + ') → Income Goal Planner';
-  } else {
-    el.innerHTML = 'Next with gross amount of <b>Monthly</b> (' + fmtSNT(gross / 12) + ') → Income Goal Planner';
-  }
+  const kind = appState.incomeBasis?.kind;
+  const basis = kind === 'pre_tax_after_fees' ? 'pre-tax amount after platform fees (fees already deducted)' : kind === 'take_home' ? 'amount after planning reserve' : 'gross amount';
+  const period = _sntPeriod === 'year' ? 'Yearly' : 'Monthly';
+  el.textContent = 'Next with ' + basis + ' · ' + period + ' (' + fmtSNT(_sntPeriod === 'year' ? gross : gross / 12) + ') → Income Goal Planner';
 }
 
 function getSharedPeriodLabel(period) {
@@ -3971,11 +3982,16 @@ function goNextTool() {
   const r = window._lastResult;
   if (!r || !r.incomeAnnual) { showToast(financialActionMessage(), false); return; }
   const gross = r.incomeAnnual;
+  const basis = appState.incomeBasis;
+  const kind = basis?.kind || 'gross';
+  const basisLabel = kind === 'pre_tax_after_fees' ? 'Pre-tax after platform fees' : kind === 'take_home' ? 'After planning reserve' : 'Gross';
   const payload = {
     version: 1,
     updatedAt: Date.now(),
     source: 'tax_estimator',
-    grossAnnual: Math.round(gross * 100) / 100,
+    grossAnnual: kind === 'gross' ? Math.round(gross * 100) / 100 : 0,
+    amountAnnual: Math.round(gross * 100) / 100,
+    incomeKind: kind,
     grossPeriod: _sntPeriod === 'year' ? 'year' : 'month',
     grossSelectedLabel: _sntPeriod === 'year' ? 'Yearly' : 'Monthly',
     note: 'Tax Estimator'
@@ -3985,19 +4001,22 @@ function goNextTool() {
       handoff: {
         amount: _sntPeriod === 'year' ? Math.round(gross * 100) / 100 : Math.round((gross / 12) * 100) / 100,
         period: _sntPeriod === 'year' ? 'year' : 'month',
-        kind: 'gross',
+        kind,
         basis: 'tax_estimate',
-        label: _sntPeriod === 'year' ? 'Yearly Gross' : 'Monthly Gross'
+        label: (_sntPeriod === 'year' ? 'Yearly ' : 'Monthly ') + basisLabel
       },
       normalized: {
-        annualGross: Math.round(gross * 100) / 100,
-        monthlyGross: Math.round((gross / 12) * 100) / 100,
+        annualGross: kind === 'gross' ? Math.round(gross * 100) / 100 : 0,
+        monthlyGross: kind === 'gross' ? Math.round((gross / 12) * 100) / 100 : 0,
+        annualPreTaxAfterFees: kind === 'pre_tax_after_fees' ? Math.round(gross * 100) / 100 : 0,
         annualTaxEstimate: Math.round((r.totalTax || 0) * 100) / 100,
         annualTakeHome: Math.round((r.takeHome || 0) * 100) / 100
       },
       assumptions: {
         taxYear: r.year,
-        filingStatus: r.status
+        filingStatus: r.status,
+        incomeOriginalPeriod: basis?.originalPeriod || (_sntPeriod === 'year' ? 'year' : 'month'),
+        incomeOriginalSource: basis?.sourceTool || 'tax_estimator'
       }
     });
   }
@@ -4039,12 +4058,14 @@ function tryToolkitImport() {
   try {
     let updatedAt = 0;
     let importMeta = null;
+    let incomeBasis = null;
 
     if (window.UFCToolkit && typeof window.UFCToolkit.getFreshImport === 'function') {
       const shared = window.UFCToolkit.getFreshImport('tax_estimator');
       if (shared) {
         updatedAt = shared.updatedAt || 0;
         importMeta = buildToolkitImportMeta(shared);
+        if (importMeta) incomeBasis = {kind: shared.handoff.kind, sourceTool: shared.sourceTool, originalPeriod: shared.handoff.period, label: shared.handoff.label || '', bannerText: importMeta.bannerText};
         if (importMeta && isPlatformFeeImport(shared) && shared.handoff.kind === 'pre_tax_after_fees') {
           importMeta.bannerText += ' Platform fees are already deducted; do not deduct them again as business expenses. Existing expenses are unchanged.';
         }
@@ -4096,6 +4117,9 @@ function tryToolkitImport() {
 
     setIncMode(importMeta.incomeMode === 'monthly' ? 'monthly' : 'annual');
     $('incomeInput').value = formatImportedIncomeValue(importMeta.amount);
+    appState.incomeBasis = incomeBasis;
+    if (incomeBasis) incomeBasis.bannerText = importMeta.bannerText;
+    scheduleSave();
 
     try { localStorage.setItem(LS_IMPORT_AT_KEY, String(updatedAt || Date.now())); } catch(e) {}
 
@@ -4125,6 +4149,7 @@ function collectState() {
     year:            appState.year,
     incMode:         appState.incMode,
     incomeInput:     $('incomeInput').value,
+    incomeBasis:     appState.incomeBasis || null,
     expMode:         appState.expMode,
     expInput:        $('expInput').value,
     expDollarValue:  appState.expDollarValue,
@@ -4190,6 +4215,11 @@ function restoreState() {
   if (saved.year === 2025 || saved.year === 2026) setYear(saved.year);
   if (saved.incMode === 'monthly' || saved.incMode === 'annual') setIncMode(saved.incMode);
   if (saved.incomeInput != null) $('incomeInput').value = saved.incomeInput;
+  if (saved.incomeBasis && ['gross','pre_tax_after_fees','take_home'].includes(saved.incomeBasis.kind)) {
+    appState.incomeBasis = saved.incomeBasis;
+    $('importBannerText').textContent = saved.incomeBasis.bannerText || 'Imported income basis: review the original period.';
+    $('importBanner').classList.add('show');
+  }
   if (saved.expDollarValue != null) appState.expDollarValue = saved.expDollarValue;
   if (saved.expPctValue != null) appState.expPctValue = saved.expPctValue;
   if (saved.expInput != null) {
@@ -4228,6 +4258,9 @@ function restoreState() {
   if (appState.stateOn) {
     const meta = getStateMeta(getSelectedStateName());
     $('statePct').disabled = meta.mode === 'none' || meta.mode === 'flat_state';
+    if (meta.mode === 'none') $('statePct').value = '0';
+    if (meta.mode === 'flat_state') $('statePct').value = String(meta.flatRate * 100);
+    if ($('statePct').disabled) appState.statePresetChoice = '';
     updateStateHint(getSelectedStateName());
   }
   if (saved.retirePlanType === '401k' || saved.retirePlanType === 'sep' || saved.retirePlanType === 'custom') {
@@ -4293,6 +4326,7 @@ function setYear(y) {
 // Annual mode → "− $10k/yr" / "+ $10k/yr"
 // Monthly mode → "− $833/mo" / "+ $833/mo"  (10000/12 = 833.33… → rounded to $833)
 function setIncMode(m) {
+  if (appState.incMode !== m) clearIncomeBasis();
   appState.incMode = m;
   $('incAnnualBtn').classList.toggle('active', m === 'annual');
   $('incMonthlyBtn').classList.toggle('active', m === 'monthly');
@@ -4334,6 +4368,7 @@ function setIncMode(m) {
 function setExpMode(m, skipSync) {
   if (!skipSync) syncExpenseStateFromField();
   appState.expMode = m;
+  $('expInput').setAttribute('aria-label', m === 'pct' ? 'Business expenses as a percentage of annual receipts' : 'Annual business expenses in dollars');
   $('expDollarBtn').classList.toggle('active', m === 'dollar');
   $('expPctBtn').classList.toggle('active',    m === 'pct');
   $('expInputWrap').querySelector('.input-prefix').textContent = m === 'pct' ? '%' : '$';
@@ -4510,6 +4545,7 @@ function topBracket(taxable, brackets) {
 // Logic unchanged: always adjusts by ±10000/yr (or /12 in monthly mode).
 // Labels are handled in setIncMode().
 function adjustIncome(annualDelta) {
+  clearIncomeBasis();
   const el = $('incomeInput');
   const isMonthly = appState.incMode === 'monthly';
   const cur   = safe(parseFloat(String(el.value).replace(/,/g, '')) || 0);
@@ -4841,7 +4877,7 @@ function calculate() {
     }
   }
 
-  if ($('heroLabel'))         $('heroLabel').textContent     = isMonthly ? 'You Keep · Monthly' : 'You Keep · Annual';
+  if ($('heroLabel'))         $('heroLabel').textContent     = (isMonthly ? 'You Keep · Monthly' : 'You Keep · Annual') + (retireContrib > 0 ? ' (before retirement)' : '');
   if ($('heroSecLabel'))      $('heroSecLabel').textContent  = isMonthly ? 'Per year:' : 'Monthly:';
   if ($('totalTaxLabel'))     $('totalTaxLabel').textContent = isMonthly ? 'Annual Tax' : 'Total Tax';
   if ($('heroMonthlyTaxRow')) $('heroMonthlyTaxRow').style.display = isMonthly ? 'block' : 'none';
@@ -5225,7 +5261,7 @@ function copySummary() {
 US FREELANCER TAX ESTIMATOR — ${r.year}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Filing Status:           ${statusMap[r.status]}
-Gross Income (annual):   ${fmt(r.incomeAnnual)}
+${appState.incomeBasis?.kind === 'pre_tax_after_fees' ? 'Receipts after platform fees (annual)' : 'Gross Income (annual)'}:   ${fmt(r.incomeAnnual)}
 ${monthlyNote}${entityLine}Business Expenses:       ${fmt(r.expenses)}
 Net Business Profit:     ${fmt(r.netProfit)}
 ${sCorpIncomeSection}${yourW2Line}${spouseW2Line}${deductionLine}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -5366,7 +5402,7 @@ async function downloadImage() {
   const GAP    = 10;
 
   const imgIsMonthly = r.incMode === 'monthly';
-  const imgMainLabel = imgIsMonthly ? 'YOU KEEP  (MONTHLY)' : 'YOU KEEP  (ANNUAL)';
+  const imgMainLabel = (imgIsMonthly ? 'YOU KEEP (MONTHLY)' : 'YOU KEEP (ANNUAL)') + (r.retireContrib > 0 ? ' · BEFORE RETIREMENT' : '');
   const imgMainAmt   = imgIsMonthly ? fmt(r.takeHome / 12) : fmt(r.takeHome);
   const imgSecLabel  = imgIsMonthly ? 'Per year:' : 'Monthly:';
   const imgSecAmt    = imgIsMonthly ? fmt(r.takeHome) : fmt(r.takeHome / 12);
@@ -5391,7 +5427,14 @@ async function downloadImage() {
   }
   const hFooter = 50 + scopeLines.length * 14;
 
-  const totalH = hHeader + GAP + hHero + GAP + hBkCard + GAP + hSACard + GAP + hQtrCard + GAP + hFooter + 30;
+  const inputRows = [
+    [appState.incomeBasis?.kind === 'pre_tax_after_fees' ? 'Annual receipts after platform fees' : 'Annual business receipts', fmt(r.incomeAnnual)],
+    ['Annual business expenses', fmt(r.expenses)],
+    ['Annual net business profit', fmt(r.netProfit)],
+    ...(r.totalW2 > 0 ? [['Annual W-2 wages', fmt(r.totalW2)]] : [])
+  ];
+  const hInputCard = 42 + inputRows.length * ROW_H;
+  const totalH = hInputCard + GAP + hHeader + GAP + hHero + GAP + hBkCard + GAP + hSACard + GAP + hQtrCard + GAP + hFooter + 30;
 
   const canvas = document.createElement('canvas');
   canvas.width  = W * SC;
@@ -5414,8 +5457,14 @@ async function downloadImage() {
     if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw||1; ctx.stroke(); }
   }
 
-  function txt(str, x, y, font, color, align) {
-    ctx.font = font; ctx.fillStyle = color;
+  function txt(str, x, y, font, color, align, maxWidth = IW - 36) {
+    ctx.font = font;
+    const size = /([\d.]+)px/.exec(font);
+    if (size && ctx.measureText(str).width > maxWidth) {
+      const fitted = Math.max(8, Number(size[1]) * maxWidth / ctx.measureText(str).width);
+      ctx.font = font.replace(/[\d.]+px/, fitted + 'px');
+    }
+    ctx.fillStyle = color;
     ctx.textAlign = align || 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(str, x, y);
@@ -5467,13 +5516,22 @@ async function downloadImage() {
 
   const col3 = IW / 3;
   txt('TOTAL TAX', PAD+18, cy+116, FUI(9, 700), C.muted);
-  txt(fmt(r.totalTax), PAD+18, cy+135, FN(14, 500), C.red);
+  txt(fmt(r.totalTax), PAD+18, cy+135, FN(14, 500), C.red, 'left', col3 - 28);
   txt('EFFECTIVE RATE', PAD+18+col3, cy+116, FUI(9, 700), C.muted);
   txt(fmtPct(r.effectiveRate), PAD+18+col3, cy+135, FN(14, 500), C.gold);
   txt('TOP BRACKET', PAD+18+col3*2, cy+116, FUI(9, 700), C.muted);
   txt(r.topRate ? r.topRate.toFixed(0) + '%' : '—', PAD+18+col3*2, cy+135, FN(14, 500), C.muted2);
 
   cy += heroH + GAP;
+
+  rrect(PAD, cy, IW, hInputCard, RD, C.card, C.border);
+  txt('ANNUAL INPUT BASIS', PAD+18, cy+26, FUI(9.5,700), C.muted);
+  inputRows.forEach((row, i) => {
+    const y = cy + 50 + i * ROW_H;
+    txt(row[0], PAD+18, y, FUI(11,400), C.muted2, 'left', IW * .52);
+    txt(row[1], PAD+IW-16, y, FN(12,500), C.text, 'right', IW * .40);
+  });
+  cy += hInputCard + GAP;
 
   const bkH = SEC_PD + 18 + bkRows.length * ROW_H + SEC_PD;
   rrect(PAD, cy, IW, bkH, RD, C.card, C.border);
@@ -5487,13 +5545,13 @@ async function downloadImage() {
     const midY   = rowY + ROW_H/2;
 
     if (row.sub) {
-      txt(row.label, PAD+18, midY + 5, FUI(10.5, 400), C.muted);
-      txt(row.val,   PAD+IW-16, midY + 5, FN(11, 400), C.muted, 'right');
+      txt(row.label, PAD+18, midY + 5, FUI(10.5, 400), C.muted, 'left', IW * .52);
+      txt(row.val,   PAD+IW-16, midY + 5, FN(11, 400), C.muted, 'right', IW * .40);
     } else {
       dot(PAD+22, midY, 4, row.color);
-      txt(row.label, PAD+34, midY + 5, FUI(12, 400), C.muted2);
+      txt(row.label, PAD+34, midY + 5, FUI(12, 400), C.muted2, 'left', IW * .52);
       const isNeg = row.val.startsWith('−');
-      txt(row.val, PAD+IW-16, midY + 5, FN(12, 500), isNeg ? C.green : C.text, 'right');
+      txt(row.val, PAD+IW-16, midY + 5, FN(12, 500), isNeg ? C.green : C.text, 'right', IW * .40);
     }
     if (!isLast) hline(PAD+16, rowY + ROW_H, PAD+IW-16, C.border, 0.75);
   });
@@ -5512,7 +5570,7 @@ async function downloadImage() {
   saItems.forEach((s, i) => {
     const sx = PAD + colW * i + colW/2;
     txt(s.label, sx, cy + 50, FUI(8, 700), C.muted, 'center');
-    txt(s.val,   sx, cy + 72, FN(13, 500), C.gold, 'center');
+    txt(s.val,   sx, cy + 72, FN(13, 500), C.gold, 'center', colW - 20);
     if (i < 2) { ctx.beginPath(); ctx.moveTo(PAD + colW*(i+1), cy+28); ctx.lineTo(PAD + colW*(i+1), cy+saH-16); ctx.strokeStyle = C.border; ctx.lineWidth = 0.75; ctx.stroke(); }
   });
   cy += saH + GAP;
@@ -5531,8 +5589,8 @@ async function downloadImage() {
     const midY = qry + i*ROW_H + ROW_H/2;
     rrect(PAD+16, midY-9, 28, 18, 4, C.goldDim, C.goldBorder);
     txt(q.q, PAD+30, midY+4, FN(9, 700), C.gold, 'center');
-    txt(q.date, PAD+54, midY+5, FUI(12, 400), C.muted2);
-    txt(q.val,  PAD+IW-16, midY+5, FN(12, 500), C.text, 'right');
+    txt(q.date, PAD+54, midY+5, FUI(12, 400), C.muted2, 'left', IW * .52);
+    txt(q.val,  PAD+IW-16, midY+5, FN(12, 500), C.text, 'right', IW * .40);
     if (i < qtrItems.length-1) hline(PAD+16, qry+i*ROW_H+ROW_H, PAD+IW-16, C.border, 0.75);
   });
   cy += qH + GAP;
@@ -5567,6 +5625,7 @@ async function downloadImage() {
 
 // ─── RESET ────────────────────────────────────────────────────────────────
 function resetAll(skipSave) {
+  clearIncomeBasis();
   if (skipSave) _saveSuspended = true;
   if (_saveTimer) {
     clearTimeout(_saveTimer);
@@ -5783,8 +5842,8 @@ function downloadPDF() {
   var statusText = statusMap[r.status] || 'Single';
 
   var incomeRows = [
-    ['Gross income (' + (isMonthly ? 'monthly × 12' : 'annual') + ')', fd(r.incomeAnnual)],
-    ['Business expenses', signed(-num(r.expenses))],
+    [(appState.incomeBasis?.kind === 'pre_tax_after_fees' ? 'Receipts after platform fees' : 'Gross income') + ' (' + (isMonthly ? 'monthly × 12' : 'annual') + ')', fd(r.incomeAnnual)],
+    ['Annual business expenses', signed(-num(r.expenses))],
     ['Net business profit', fd(r.netProfit)]
   ];
   if (r.sCorpOn) {
@@ -5819,7 +5878,8 @@ function downloadPDF() {
   var html = `
   <div id="pdfRenderRoot" style="position:fixed;left:-20000px;top:0;width:794px;z-index:-1;pointer-events:none;">
     <style>
-      #pdfRenderRoot, #pdfRenderRoot *{box-sizing:border-box}
+      #pdfRenderRoot, #pdfRenderRoot *{box-sizing:border-box;min-width:0}
+      #pdfRenderRoot .t-label{max-width:60%;overflow-wrap:anywhere}
       #pdfRenderRoot .pdf-page{
         width:794px; min-height:1123px; padding:0; margin:0;
         font-family: Inter, Arial, Helvetica, sans-serif;
@@ -5835,22 +5895,22 @@ function downloadPDF() {
       #pdfRenderRoot .hero h1{margin:0;font-size:42px;line-height:1.03;letter-spacing:-1px;font-weight:900}
       #pdfRenderRoot .hero-meta{margin-top:10px;color:#bfd0ec;font-size:15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
       #pdfRenderRoot .dot{opacity:.6}
-      #pdfRenderRoot .summary-band{margin-top:24px;border:3px solid #d6a21b;border-radius:24px;padding:16px;display:grid;grid-template-columns:1.38fr repeat(3,1fr);gap:12px;align-items:stretch;background:rgba(10,32,72,.45)}
+      #pdfRenderRoot .summary-band{margin-top:24px;border:3px solid #d6a21b;border-radius:24px;padding:16px;display:grid;grid-template-columns:minmax(0,1.38fr) repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;background:rgba(10,32,72,.45)}
       #pdfRenderRoot .keep-box{padding:4px 2px;display:flex;flex-direction:column;justify-content:center}
       #pdfRenderRoot .keep-label{color:#d6a21b;font-size:18px;font-weight:900;margin-bottom:4px}
       #pdfRenderRoot .keep-value{color:#42e27d;font-size:44px;line-height:1;font-weight:900;letter-spacing:-1.2px;white-space:nowrap}
       #pdfRenderRoot .stat-card{background:linear-gradient(180deg,#1a376f 0%, #163161 100%);border-radius:18px;padding:14px 12px 12px;min-height:92px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
-      #pdfRenderRoot .stat-card .value{font-size:22px;font-weight:900;line-height:1.05;margin-bottom:8px;letter-spacing:-.4px;white-space:nowrap}
+      #pdfRenderRoot .stat-card .value{width:100%;max-width:100%;font-size:22px;font-weight:900;line-height:1.05;margin-bottom:8px;letter-spacing:-.4px;white-space:nowrap}
       #pdfRenderRoot .stat-card.red .value{color:#ff8d96}
       #pdfRenderRoot .stat-card.gold .value{color:#ffd95c}
       #pdfRenderRoot .stat-card.white .value{color:#fff}
       #pdfRenderRoot .stat-card .label{font-size:12px;color:#dbe7ff;font-weight:800;text-transform:uppercase;letter-spacing:.35px}
-      #pdfRenderRoot .grid-2{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+      #pdfRenderRoot .grid-2{margin-top:22px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
       #pdfRenderRoot .section-title{display:flex;align-items:center;gap:10px;margin:0 0 12px;color:#d6a21b;font-size:22px;line-height:1.1;font-weight:900}
       #pdfRenderRoot .section-title:before{content:"";width:7px;height:28px;background:#d6a21b;border-radius:4px;flex:0 0 auto}
       #pdfRenderRoot .panel{background:linear-gradient(180deg,rgba(22,50,102,.96),rgba(17,42,89,.96));border:2px solid rgba(75,115,182,.42);border-radius:22px;padding:18px 18px 16px}
       #pdfRenderRoot .rows{display:flex;flex-direction:column;gap:12px}
-      #pdfRenderRoot .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;font-size:15px;line-height:1.35}
+      #pdfRenderRoot .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start;font-size:15px;line-height:1.35}
       #pdfRenderRoot .row .label{color:#d9e5fb;opacity:.96;min-width:0}
       #pdfRenderRoot .row .amt{color:#fff;font-weight:800;text-align:right;white-space:nowrap}
       #pdfRenderRoot .row.negative .amt{color:#42e27d}
@@ -5859,16 +5919,16 @@ function downloadPDF() {
       #pdfRenderRoot .total-band{margin-top:22px;background:linear-gradient(180deg,#b48705 0%, #9c7200 100%);border-radius:20px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
       #pdfRenderRoot .t-label{color:#fff4d2;font-size:22px;font-weight:900;letter-spacing:.35px;text-transform:uppercase}
       #pdfRenderRoot .t-value{color:#ff8d96;font-size:24px;font-weight:900;letter-spacing:-.4px;white-space:nowrap}
-      #pdfRenderRoot .set-aside-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-      #pdfRenderRoot .mini-card{background:linear-gradient(180deg,#1b3c78 0%, #183467 100%);border-radius:18px;padding:16px 10px 14px;text-align:center;min-height:86px;display:flex;flex-direction:column;justify-content:center}
+      #pdfRenderRoot .set-aside-cards{display:grid;grid-template-columns:1fr;gap:8px}
+      #pdfRenderRoot .mini-card{background:linear-gradient(180deg,#1b3c78 0%, #183467 100%);border-radius:12px;padding:10px;text-align:center;min-height:48px;display:flex;flex-direction:column;justify-content:center}
       #pdfRenderRoot .mini-card .value{color:#ffd45c;font-size:19px;font-weight:900;margin-bottom:6px;letter-spacing:-.2px;white-space:nowrap}
       #pdfRenderRoot .mini-card .label{color:#dce7fb;font-size:12px;font-weight:800;text-transform:uppercase}
       #pdfRenderRoot .due-table{display:flex;flex-direction:column;gap:10px}
-      #pdfRenderRoot .due-row{display:grid;grid-template-columns:58px 1fr auto;gap:12px;align-items:center;font-size:15px}
+      #pdfRenderRoot .due-row{display:grid;grid-template-columns:38px minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;font-size:15px}
       #pdfRenderRoot .q-badge{background:#d6a21b;color:#fff;font-weight:900;border-radius:12px;padding:6px 0;text-align:center;font-size:14px}
       #pdfRenderRoot .due-date{color:#e9f1ff;font-weight:600}
       #pdfRenderRoot .due-amt{color:#fff;font-weight:900;white-space:nowrap}
-      #pdfRenderRoot .footer-stats{margin-top:22px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+      #pdfRenderRoot .footer-stats{margin-top:22px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
       #pdfRenderRoot .footer-chip{background:linear-gradient(180deg,#1b3b76 0%, #183464 100%);border-radius:18px;padding:14px 10px 12px;text-align:center;min-height:74px;display:flex;flex-direction:column;justify-content:center;gap:4px}
       #pdfRenderRoot .footer-chip .main{color:#fff;font-size:15px;font-weight:900;line-height:1.15;white-space:nowrap}
       #pdfRenderRoot .footer-chip .sub{color:#d4def5;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.35px}
@@ -5896,7 +5956,7 @@ function downloadPDF() {
         </section>
         <section class="summary-band">
           <div class="keep-box">
-            <div class="keep-label">YOU KEEP (${isMonthly ? 'MONTHLY' : 'ANNUAL'})</div>
+            <div class="keep-label">YOU KEEP (${isMonthly ? 'MONTHLY' : 'ANNUAL'})${retirement > 0 ? ' · BEFORE RETIREMENT' : ''}</div>
             <div class="keep-value">${esc(fd(keepMain))}</div>
           </div>
           <div class="stat-card red">
@@ -5931,7 +5991,7 @@ function downloadPDF() {
           </div>
         </section>
         <section class="total-band">
-          <div class="t-label">TOTAL TAX OWED</div>
+          <div class="t-label">TOTAL MODELED ANNUAL TAXES</div>
           <div class="t-value">${esc(fd(totalTax))}</div>
         </section>
         <section class="grid-2">
@@ -5983,6 +6043,15 @@ function downloadPDF() {
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '<svg class="dl-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1v4M8 15v-4M15 8h-4M1 8h4M12.95 3.05l-2.83 2.83M5.88 10.12l-2.83 2.83M12.95 12.95l-2.83-2.83M5.88 5.88L3.05 3.05" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Building PDF...';
+  }
+
+  // Fit accepted finite amounts before the genuine HTML-to-canvas render.
+  for (const el of pageEl.querySelectorAll('.keep-value,.value,.amt,.due-amt,.t-value,.footer-chip .main')) {
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    if (el.classList.contains('t-value')) el.style.maxWidth = '40%';
+    while (el.scrollWidth > el.clientWidth + 1 && size > 9) {
+      size -= .5; el.style.fontSize = size + 'px';
+    }
   }
 
   var pdfSaved = false;
