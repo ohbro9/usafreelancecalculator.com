@@ -3128,7 +3128,10 @@ function getTaxScopeNotes(result) {
   if (result.investmentIncome > 0) notes.push('Investment input affects NIIT only; its regular income tax is excluded.');
   if (result.stateOn) notes.push('State is an approximation; state deductions, surtaxes and local taxes are excluded.');
   if (result.sCorpOn) notes.push('S-Corp salary, distributions and benefits require professional review. Include owner wages in business QBI wages; they are not added automatically.');
+  if (result.sCorpOn && result.retireOn && result.retirePlanType === '401k') notes.push('Enter S-Corp owner salary before employee deferrals. The applied pre-tax employee 401(k) contribution reduces owner wages for ACTC once; payroll taxes still use salary before deferrals. Do not also enter that owner salary as other W-2 wages.');
+  if (result.retireOn && result.retirePlanType === 'custom') notes.push('Custom retirement contributions do not identify an employee salary deferral; no ACTC wage reduction is inferred. Verify refundable-credit eligibility separately.');
   if (result.retireContrib > 0) notes.push(`You Keep is income after modeled taxes, before retirement funding. Modeled annual cash after the ${fmt(result.retireContrib)} contribution: ${fmt(result.takeHome - result.retireContrib)}. Retirement savings remain assets, not spending cash.`);
+  if (result.totalTax < 0) notes.push('Negative modeled annual taxes reflect estimated refundable-credit offsets, not a guaranteed refund. Actual refunds depend on the complete return, withholding and payments.');
   notes.push(`Total modeled annual taxes are not an outstanding IRS balance. Ordinary W-2 payroll taxes: ${fmt(result.w2PayrollTax || 0)} (already associated with wages). Federal income/SE/additional taxes after refundable credits, excluding ordinary W-2 payroll and state tax: ${fmt(result.federalEstimatedTaxLiability || 0)}. Estimated federal withholding: ${fmt(result.estimatedWithholding || 0)}. Selected annual federal planning reserve after withholding: ${fmt((result.quarterly || 0) * 4)}; actual payments and filing circumstances may differ.`);
   if (appState.incomeBasis && appState.incomeBasis.kind === 'pre_tax_after_fees') notes.push('Business receipts were imported after platform fees; those fees are already deducted. Do not deduct them again. Original client gross is not inferred. Review the original income period before treating a payout as annual receipts.');
   if (result.retireOn) notes.push('Retirement assumes remaining eligible plan room; other-employer deferrals, catch-up and combined-plan rules are excluded.');
@@ -3403,6 +3406,7 @@ function renderRetirementPrompt(result) {
   if (plan === '401k') {
     copy = `Using an employee-style estimated max of <strong>${fmt(limit)}</strong>, based on your current compensation base.`;
     copy += ' Employee deferrals only: other-employer deferrals, catch-up contributions, and combined employer contributions are not modeled. Enter only your remaining eligible contribution.';
+    if (result && result.sCorpOn) copy += ' Enter owner salary before this deferral; do not enter salary already net of it. Separately entered W-2 wages are not reduced by this contribution.';
   } else if (plan === 'sep') {
     copy = `Using a simplified SEP estimate up to <strong>${fmt(limit)}</strong>. Actual deductible SEP room can still differ because it depends on compensation formulas${result && result.sCorpOn ? ' and S-Corp payroll setup' : ''}.`;
   } else {
@@ -4704,8 +4708,12 @@ function calculate() {
     ? Math.min(dependents, Math.max(1, appState.ctcOtherDependents || 1))
     : 0;
   const phaseoutBase = Math.max(0, grossIncome - halfSE - retireContrib);
+  // Schedule 8812 starts wages at Form 1040 line 1z (W-2 Box 1).
+  // This option models employee-only pre-tax deferrals from gross owner
+  // salary, not SEP employer contributions or an unclassified custom plan.
+  // Sole-proprietor retirement deductions do not reduce worksheet earnings.
   const actcEarnedIncomeBase = isSCorp
-    ? (totalW2 + sCorpSalary)
+    ? (totalW2 + Math.max(0, sCorpSalary - (appState.retirePlanType === '401k' ? retireContrib : 0)))
     : (Math.max(0, netProfit - halfSE) + totalW2);
   const dependentCredits = getDependentTaxCredits({
     year: appState.year,
@@ -5811,11 +5819,10 @@ function downloadPDF() {
     return isFinite(v) ? v : 0;
   }
   function fd(v) {
-    var n = Math.abs(num(v));
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (num(v) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function signed(v) {
-    return num(v) < 0 ? '-' + fd(Math.abs(v)) : fd(v);
+    return fd(v);
   }
   function pct(v) {
     return num(v).toFixed(1) + '%';

@@ -2,7 +2,7 @@ name: PR release validation
 
 on:
   pull_request:
-    branches: [main, 'fix/tax-input-export-safety-*']
+    branches: [main, 'fix/tax-input-export-safety-*', 'fix/tax-reporting-controls-*']
 
 permissions:
   contents: read
@@ -85,6 +85,11 @@ jobs:
           set -euo pipefail
           node tests/tax-estimator-reporting.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-reporting.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-reporting.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
+      - name: Tax Estimator focused ACTC and signed real reports
+        run: |
+          set -euo pipefail
+          node tests/tax-estimator-financial-recheck.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-financial-recheck.log"
+          node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-financial-recheck.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Income Goal Planner and native exports
         run: |
           set -euo pipefail
