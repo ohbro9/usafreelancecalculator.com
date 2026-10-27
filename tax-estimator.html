@@ -3112,6 +3112,10 @@ function getDeductionLabel(result) {
   return result.nonItemizerCharity > 0 ? 'Standard + Qualifying Cash Gifts' : 'Standard Deduction';
 }
 
+function formatStateRate(value) {
+  return Number(value).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 10 });
+}
+
 function getTaxScopeNotes(result) {
   const notes = ['Planning scope: one business and W-2 income, base standard deductions only. No AMT, EITC, capital-gain/dividend tax, loss carryovers or age/dependent adjustments.'];
   if (result.investmentIncome > 0) notes.push('Investment input affects NIIT only; its regular income tax is excluded.');
@@ -5250,7 +5254,7 @@ function copySummary() {
     : '';
 
   const stateLine = r.stateOn
-    ? `State Tax (${r.stateName || 'Custom'} @ ${r.statePctVal.toFixed(1)}%): ${fmt(r.stateTax)}\n`
+    ? `State Tax (${r.stateName || 'Custom'} @ ${formatStateRate(r.statePctVal)}%): ${fmt(r.stateTax)}\n`
     : `State Tax:               ${fmt(r.stateTax)}  (OFF)\n`;
   const quarterlyModeLine = `  Quarterly Mode:          ${r.quarterlyMode === 'safe_harbor' ? 'Estimated safe harbor (may leave tax due at filing)' : 'Full annual federal reserve (not a payment obligation)'}\n`;
   const withholdingLine = r.estimatedWithholding > 0
@@ -5385,7 +5389,7 @@ async function downloadImage() {
     { label: 'Federal Income Tax', val: fmt(r.federalTax), color: C.red, show: true },
     { label: r.sCorpOn ? 'Payroll Tax (employee)' : (r.totalW2 > 0 ? 'W-2 + SE Payroll Taxes' : 'Self-Employment Tax'), val: fmt(r.seTotal), color: C.gold, show: true },
     { label: 'NIIT (3.8% est.)', val: fmt(r.niit), color: C.red, show: (r.niit||0) > 0 },
-    { label: 'State Tax (' + r.statePctVal.toFixed(1) + '%)', val: fmt(r.stateTax), color: C.blue, show: r.stateOn },
+    { label: 'State Tax (' + formatStateRate(r.statePctVal) + '%)', val: fmt(r.stateTax), color: C.blue, show: r.stateOn },
     { label: 'S-Corp biz cost', val: '−' + fmt((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)), color: C.purple, show: !!r.sCorpOn && (((r.sCorpAdminCost||0) + (r.employerPayrollTax||0)) > 0) },
     { label: 'S-Corp distribution', val: fmt(r.sCorpDistribution||0), color: C.blue, show: !!r.sCorpOn && (r.sCorpDistribution||0) > 0 },
     { label: 'QBI Deduction (est.)', val: '−' + fmt(r.qbiDeduction), color: C.green, show: r.qbiOn && r.qbiDeduction > 0 },
@@ -5825,7 +5829,7 @@ function downloadPDF() {
   var totalTax = num(r.totalTax);
   var stateLabel = 'State Tax';
   if (r.stateOn && r.stateName) stateLabel = 'State Tax - ' + r.stateName;
-  if (r.stateOn && num(r.statePctVal) > 0) stateLabel += ' (' + num(r.statePctVal).toFixed(1) + '%)';
+  if (r.stateOn && num(r.statePctVal) > 0) stateLabel += ' (' + formatStateRate(r.statePctVal) + '%)';
   var federalBefore = num(r.federalBeforeCTC || r.federalTax);
   var ctc = num(r.ctc);
   var payrollMain = num(r.seTotal);
