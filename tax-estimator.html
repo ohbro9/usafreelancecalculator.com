@@ -2495,8 +2495,13 @@ function validateFinancialInputs(includeQBI = true) {
     el.removeAttribute('data-financial-error');
   });
   if (summary) {
-    summary.replaceChildren(); summary.hidden = errors.length === 0;
-    if (errors.length) {
+    summary.hidden = errors.length === 0;
+    // Keep recovery links stable when blur recalculates the same errors before click.
+    const errorKey = JSON.stringify(errors.map(({id,message}) => [id,message]));
+    if (summary.dataset.errorKey !== errorKey) {
+      summary.dataset.errorKey = errorKey;
+      summary.replaceChildren();
+      if (errors.length) {
       const title = document.createElement('strong');
       title.textContent = 'Correct these inputs before calculating, exporting or continuing:';
       summary.appendChild(title);
@@ -2509,6 +2514,7 @@ function validateFinancialInputs(includeQBI = true) {
         };
         line.appendChild(link); summary.appendChild(line);
       });
+      }
     }
   }
   errors.forEach(error => {
