@@ -2474,12 +2474,13 @@ function getFinancialInputErrors(includeQBI = true) {
     const el = $(id), raw = el.value.trim();
     if (!raw) return []; // Intentional blank optional/zero-income state.
     const value = parseMoneyValue(raw);
-    const countInvalid = id === 'dependentsInput' && (!Number.isInteger(value) || value > 10);
-    const rateInvalid = id === 'statePct' && value > 20;
+    // Counts and rates use ungrouped decimal syntax; their controls read no comma groups.
+    const countInvalid = id === 'dependentsInput' && (raw.includes(',') || !Number.isInteger(value) || value > 10);
+    const rateInvalid = id === 'statePct' && (raw.includes(',') || value > 20);
     const expenseInvalid = id === 'expInput' && appState.expMode === 'pct' && value > 100;
     if (value !== null && !countInvalid && !rateInvalid && !expenseInvalid) return [];
-    const rule = id === 'dependentsInput' ? 'Enter a whole number from 0 to 10.'
-      : id === 'statePct' ? 'Enter a decimal rate from 0 to 20%.'
+    const rule = id === 'dependentsInput' ? 'Enter a whole number from 0 to 10 without commas.'
+      : id === 'statePct' ? 'Enter a decimal rate from 0 to 20% without commas.'
       : id === 'expInput' && appState.expMode === 'pct' ? 'Enter a decimal percentage from 0 to 100.'
       : 'Enter a nonnegative decimal amount up to $1 trillion; use complete comma groups.';
     return [{id,label,message:label + ': ' + rule}];
