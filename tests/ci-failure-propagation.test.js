@@ -19,6 +19,6 @@ test('Round 2 R6 every tee test pipeline propagates child failure and preserves 
     assert.ok(r.status!==0,`pipeline masked failure: ${line}`);assert.ok(fs.statSync(log).size>0,'failed process log must survive');
    }
   }
-  assert.equal(pipelines,6,'Node, Platform, caret, Hourly, Tax and Income Goal pipelines');
+  assert.equal(pipelines,7,'Node, Platform, caret, Hourly, Tax, Tax safety and Income Goal pipelines');
  }finally{fs.rmSync(temp,{recursive:true,force:true});}
 });

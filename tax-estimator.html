@@ -66,6 +66,10 @@
     --font-num:    'DM Mono', monospace;
     --font-ui:     'Inter', sans-serif;
     /* themeable extras */
+    .financial-validation {padding:16px; border:1px solid #ff6b6b; border-radius:12px; line-height:1.6; color:#ffb0b0; background:#20151b; overflow-wrap:anywhere;}
+    .financial-validation[hidden] {display:none;}
+    .financial-validation a {color:inherit;}
+    .financial-invalid .out-card, .financial-invalid .breakdown-card, .financial-invalid .setaside-grid, .financial-invalid .qtr-card {display:none !important;}
     --tooltip-bg:   #262d3d;
     --out-card-bg1: #101b2f;
     --out-card-bg2: #0c1524;
@@ -1465,7 +1469,7 @@
             <select id="stateDropdown" aria-label="Select state" onchange="onStateSelect()"></select>
           </div>
           <div class="state-pct-wrap">
-            <input type="number" id="statePct" aria-label="State income tax rate" placeholder="0.0" min="0" max="20" step="0.1" oninput="clearStatePresetChoice(); scheduleCalc()"/>
+            <input type="text" inputmode="decimal" id="statePct" aria-label="State income tax rate" placeholder="0.0" min="0" max="20" step="0.1" oninput="clearStatePresetChoice(); scheduleCalc()"/>
             <span class="input-suffix" style="right:10px;">%</span>
           </div>
         </div>
@@ -1680,7 +1684,7 @@
         <div class="smart-chips" id="dependentChips"></div>
         <div class="stepper-wrap">
           <button type="button" class="step-btn" onclick="stepKids(-1)" aria-label="Decrease">−</button>
-          <input type="number" id="dependentsInput" aria-label="Number of qualifying children for Child Tax Credit"
+          <input type="text" inputmode="numeric" id="dependentsInput" aria-label="Number of qualifying children for Child Tax Credit"
                  value="0" min="0" max="10" step="1" oninput="clampKids(); scheduleCalc()"/>
           <button type="button" class="step-btn" onclick="stepKids(1)" aria-label="Increase">+</button>
         </div>
@@ -1705,6 +1709,7 @@
 
     </div>
     <div class="desktop-right">
+  <div id="financialValidation" class="financial-validation" role="alert" aria-live="assertive" hidden></div>
 
   <!-- OUTPUT HERO -->
   <div class="out-card" id="outCard" role="region" aria-label="Tax estimate results" aria-live="polite">
@@ -2327,9 +2332,11 @@ function getQuarterlyDates(year) {
 
 function parseMoneyValue(value) {
   if (value == null) return null;
-  const raw = String(value).replace(/,/g, '').trim();
-  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) return null;
-  const amount = Number(raw);
+  const raw = String(value).trim();
+  // Grouped values require complete three-digit groups; a trailing decimal
+  // is an unfinished entry, not permission to silently use a numeric prefix.
+  if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?|\.\d+)$/.test(raw)) return null;
+  const amount = Number(raw.replace(/,/g, ''));
   // A planning-input ceiling keeps annualization, combined sources and cents
   // arithmetic comfortably finite. It is a software limit, not a tax rule.
   return Number.isFinite(amount) && amount <= 1e12 ? amount : null;
@@ -2363,6 +2370,8 @@ let _hadIncomeOnce = false;
 let _prevHeroVal   = 0;
 let _prevTotalTax  = 0;
 let _lastIncomeBand = '';
+let _financialRevision = 0;
+let _qbiValidationRelevant = false;
 
 // ─── COUNT-UP ENGINE ──────────────────────────────────────────────────────
 const _animFrames = new Map();
@@ -2399,39 +2408,141 @@ function parseNum(id) {
 
 // ─── INPUT FORMATTING & VALIDATION ───────────────────────────────────────
 function onMoneyFocus(el) {
-  const raw = String(el.value).replace(/,/g, '').trim();
-  el.value = raw;
+  // Do not destroy invalid grouping or reset selection on an unchanged value.
+  if (parseMoneyValue(el.value) !== null && el.value.includes(',')) {
+    el.value = el.value.replace(/,/g, '');
+  }
 }
 
 function onMoneyBlur(el) {
-  const raw = String(el.value).replace(/,/g, '').trim();
+  const raw = String(el.value).trim();
   const num = parseMoneyValue(raw);
-  if (num > 0) {
+  if (num !== null && num > 0) {
     const hasDecimals = raw.includes('.');
     el.value = num.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: hasDecimals ? 2 : 0
     });
-  } else {
-    el.value = num === 0 ? '0' : '';
-  }
-  el.classList.remove('input-error');
-  el.setAttribute('aria-invalid', 'false');
-  const errNote = document.getElementById(el.id + 'Err');
-  if (errNote) errNote.classList.remove('show');
+  } else if (num === 0) el.value = '0';
+  // Blank optional entries stay blank. Invalid/incomplete text survives blur.
+  validateNumInput(el);
   scheduleCalc();
 }
 
 function validateNumInput(el) {
   const raw     = String(el.value);
-  const stripped = raw.replace(/,/g, '');
-  const invalid = stripped !== '' && stripped !== '.' && parseMoneyValue(raw) === null;
+  const invalid = raw.trim() !== '' && parseMoneyValue(raw) === null;
   const errId    = el.id + 'Err';
   const errNote  = document.getElementById(errId);
   el.classList.toggle('input-error', invalid);
   el.setAttribute('aria-invalid', String(invalid));
   if (invalid && errNote) errNote.textContent = 'Enter a nonnegative decimal amount up to $1 trillion (software limit).';
   if (errNote) errNote.classList.toggle('show', invalid);
+}
+
+// Single gate shared by live results and every financial action. Feature
+// switches, not accordion visibility, decide whether an entry is applicable.
+function getActiveFinancialFields(includeQBI = true) {
+  const fields = [
+    ['incomeInput','Freelance income'], ['expInput','Business expenses'],
+    ['niitInput','Investment income'], ['withholdingInput','Estimated withholding'],
+    ['dependentsInput','Total dependents'],
+  ];
+  if (appState.w2On) {
+    fields.push(['w2Input','Your W-2 wages']);
+    if ($('filingStatus').value === 'mfj') fields.push(['spouseW2Input','Spouse W-2 wages']);
+  }
+  if (appState.retireOn) fields.push(['retireInput','Retirement contribution']);
+  if (appState.itemizedOn) fields.push(['saltPaidInput','State/local taxes paid'],['mortgageInterestInput','Mortgage interest'],['charityInput','Itemized charitable gifts'],['medicalInput','Medical expenses']);
+  if (appState.year === 2026) fields.push(['cashCharityInput','Qualifying cash gifts']);
+  if (appState.sCorpOn) fields.push(['sCorpSalaryInput','Owner salary'],['sCorpAdminInput','S-Corp annual costs']);
+  if (includeQBI && appState.qbiOn && _qbiValidationRelevant) {
+    fields.push(['qbiWagesInput','Business QBI wages']);
+    if (appState.qbiHasUbia) fields.push(['qbiUbiaInput','Qualified property']);
+  }
+  if (appState.stateOn && getStateMeta(getSelectedStateName()).mode === 'quick_rate') fields.push(['statePct','State planning rate']);
+  if ($('quarterlyModeInput').value === 'safe_harbor' && $('priorYearEligibleInput').checked) fields.push(['priorYearTaxInput','Prior-year total tax'],['priorYearAGIInput','Prior-year AGI']);
+  return fields;
+}
+
+function getFinancialInputErrors(includeQBI = true) {
+  return getActiveFinancialFields(includeQBI).flatMap(([id,label]) => {
+    const el = $(id), raw = el.value.trim();
+    if (!raw) return []; // Intentional blank optional/zero-income state.
+    const value = parseMoneyValue(raw);
+    const countInvalid = id === 'dependentsInput' && (!Number.isInteger(value) || value > 10);
+    const rateInvalid = id === 'statePct' && value > 20;
+    const expenseInvalid = id === 'expInput' && appState.expMode === 'pct' && value > 100;
+    if (value !== null && !countInvalid && !rateInvalid && !expenseInvalid) return [];
+    const rule = id === 'dependentsInput' ? 'Enter a whole number from 0 to 10.'
+      : id === 'statePct' ? 'Enter a decimal rate from 0 to 20%.'
+      : id === 'expInput' && appState.expMode === 'pct' ? 'Enter a decimal percentage from 0 to 100.'
+      : 'Enter a nonnegative decimal amount up to $1 trillion; use complete comma groups.';
+    return [{id,label,message:label + ': ' + rule}];
+  });
+}
+
+function validateFinancialInputs(includeQBI = true) {
+  const errors = getFinancialInputErrors(includeQBI);
+  const summary = $('financialValidation');
+  document.querySelectorAll('[data-financial-error]').forEach(el => {
+    el.classList.remove('input-error'); el.setAttribute('aria-invalid','false');
+    el.removeAttribute('data-financial-error');
+  });
+  if (summary) {
+    summary.replaceChildren(); summary.hidden = errors.length === 0;
+    if (errors.length) {
+      const title = document.createElement('strong');
+      title.textContent = 'Correct these inputs before calculating, exporting or continuing:';
+      summary.appendChild(title);
+      errors.forEach(error => {
+        const line = document.createElement('div'), link = document.createElement('a');
+        link.href = '#' + error.id; link.textContent = error.message;
+        link.onclick = event => {
+          event.preventDefault(); if (!appState.advOpen && !['incomeInput','expInput'].includes(error.id)) toggleAdv();
+          $(error.id).scrollIntoView({block:'center'}); $(error.id).focus();
+        };
+        line.appendChild(link); summary.appendChild(line);
+      });
+    }
+  }
+  errors.forEach(error => {
+    const el = $(error.id); el.classList.add('input-error');
+    if (error.id === 'qbiWagesInput' || error.id === 'qbiUbiaInput') {
+      $('qbiPrompt').classList.add('show');
+      $('qbiWagesField').style.display = 'block';
+      $('qbiUbiaToggleField').style.display = 'block';
+      if (appState.qbiHasUbia) $('qbiUbiaField').style.display = 'block';
+    }
+    el.setAttribute('aria-invalid','true'); el.setAttribute('data-financial-error','true');
+    const ids = new Set((el.getAttribute('aria-describedby') || '').split(' ').filter(Boolean));
+    ids.add('financialValidation'); el.setAttribute('aria-describedby',[...ids].join(' '));
+  });
+  document.body.classList.toggle('financial-invalid',errors.length > 0);
+  if (errors.length) {
+    _animFrames.forEach(id => cancelAnimationFrame(id)); _animFrames.clear();
+    _prevHeroVal = 0; _prevTotalTax = 0;
+    window._lastResult = {valid:false,incomeAnnual:0,errors};
+    $('sntHint').textContent = 'Correct the highlighted inputs before continuing.';
+    $('ctcPreview').textContent = '$—';
+  }
+  return errors.length === 0;
+}
+
+function financialActionMessage() {
+  return window._lastResult && window._lastResult.valid === false
+    ? window._lastResult.errors[0].message : 'Enter your income first';
+}
+
+function financialSnapshot() {
+  const state = collectState(); delete state.advOpen;
+  return {revision:_financialRevision,values:JSON.stringify(state)};
+}
+
+function financialSnapshotCurrent(snapshot) {
+  const state = collectState(); delete state.advOpen;
+  return snapshot.revision === _financialRevision && snapshot.values === JSON.stringify(state)
+    && getFinancialInputErrors().length === 0;
 }
 
 // ─── KIDS STEPPER ─────────────────────────────────────────────────────────
@@ -2441,8 +2552,7 @@ function stepKids(delta) {
   scheduleCalc();
 }
 function clampKids() {
-  const el = $('dependentsInput');
-  el.value = clamp(parseInt(el.value) || 0, 0, 10);
+  validateNumInput($('dependentsInput'));
 }
 
 function getAnnualIncomeBase() {
@@ -3859,7 +3969,7 @@ function buildToolkitImportMeta(shared) {
 function goNextTool() {
   calculate();
   const r = window._lastResult;
-  if (!r || !r.incomeAnnual) { showToast('Enter your income first', false); return; }
+  if (!r || !r.incomeAnnual) { showToast(financialActionMessage(), false); return; }
   const gross = r.incomeAnnual;
   const payload = {
     version: 1,
@@ -4354,6 +4464,9 @@ function toggleW2() {
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────
 function scheduleCalc() {
+  _financialRevision += 1;
+  // Invalidate immediately; a same-frame export must not see a stale result.
+  validateFinancialInputs();
   scheduleSave();
   if (!calcPending) {
     calcPending = true;
@@ -4413,6 +4526,7 @@ function adjustIncome(annualDelta) {
 
 // ─── CALCULATE ────────────────────────────────────────────────────────────
 function calculate() {
+  if (!validateFinancialInputs(false)) return;
   const data   = TAX[appState.year];
   const status = $('filingStatus').value;
   const isSCorp = !!appState.sCorpOn;
@@ -4523,6 +4637,13 @@ function calculate() {
   const {usedDeduction, usedDeductionMode, nonItemizerCharity, taxableBeforeQBI,
     qbiTaxableBeforeQBI, taxableIncome, section68Reduction, qbiCalc} = deductionPlan;
   const qbiDeduction = qbiCalc.deduction;
+  // These conditional inputs cannot affect the ordinary below-threshold QBI
+  // calculation or an excluded SSTB. Validate them before publishing results
+  // only when this calculation can actually use their wage/property limit.
+  const qbiLimits = getQBIThresholds(appState.year,status);
+  _qbiValidationRelevant = appState.qbiOn && qbiTaxableBeforeQBI > qbiLimits.threshold
+    && (appState.qbiBizType !== 'sstb' || qbiTaxableBeforeQBI < qbiLimits.threshold + qbiLimits.phaseRange);
+  if (!validateFinancialInputs()) return;
   const qbiWageUbiaLimit = qbiCalc.wageLimit;
   const qbiAppliedWageUbiaLimit = qbiCalc.appliedLimit;
   const qbiMinimumApplied = qbiCalc.minimumApplied;
@@ -5048,7 +5169,7 @@ function copySummary() {
   calculate();
   const r = window._lastResult;
   if (!r || !r.incomeAnnual) {
-    showToast('Enter your income first', false);
+    showToast(financialActionMessage(), false);
     return;
   }
   const statusMap = { single: 'Single', mfj: 'Married Filing Jointly', hoh: 'Head of Household' };
@@ -5190,7 +5311,7 @@ async function downloadImage() {
   calculate();
   const r = window._lastResult;
   if (!r || !r.incomeAnnual) {
-    showToast('Enter your income first to generate an image', false);
+    showToast(financialActionMessage(), false);
     return;
   }
 
@@ -5198,7 +5319,12 @@ async function downloadImage() {
   btn.classList.add('loading');
   btn.textContent = 'Generating...';
 
+  const snapshot = financialSnapshot();
   try { await document.fonts.ready; } catch(e) {}
+  if (!financialSnapshotCurrent(snapshot)) {
+    btn.classList.remove('loading'); btn.textContent = 'Image Report';
+    showToast('Inputs changed. Generate a new report.', false); return;
+  }
 
   const SC  = 2;
   const W   = 520;
@@ -5594,7 +5720,7 @@ function downloadPDF() {
   calculate();
   var r = window._lastResult;
   if (!r || !r.incomeAnnual) {
-    showToast('Enter your income first', false);
+    showToast(financialActionMessage(), false);
     return;
   }
 
@@ -5860,6 +5986,7 @@ function downloadPDF() {
   }
 
   var pdfSaved = false;
+  var snapshot = financialSnapshot();
 
   window.html2canvas(pageEl, {
     backgroundColor: null,
@@ -5871,6 +5998,9 @@ function downloadPDF() {
     scrollX: 0,
     scrollY: 0
   }).then(function(canvas) {
+    if (!financialSnapshotCurrent(snapshot)) {
+      showToast('Inputs changed. Generate a new report.', false); return;
+    }
     var doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
     var pageWidth = doc.internal.pageSize.getWidth();
     var pageHeight = doc.internal.pageSize.getHeight();

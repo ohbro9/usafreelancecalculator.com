@@ -2,7 +2,7 @@ name: PR release validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'fix/tax-input-export-safety-*']
 
 permissions:
   contents: read
@@ -75,6 +75,11 @@ jobs:
           set -euo pipefail
           node tests/tax-estimator.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-browser.log"
           node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-browser.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
+      - name: Tax Estimator active input and export safety
+        run: |
+          set -euo pipefail
+          node tests/tax-estimator-safety.playwright.js | tee "$RUNNER_TEMP/release-evidence/tax-safety.log"
+          node -e 'require("node:assert/strict").match(require("node:fs").readFileSync(process.env.RUNNER_TEMP + "/release-evidence/tax-safety.log", "utf8"), /^RESULT passed=[1-9][0-9]* failed=0 skipped=0$/m)'
       - name: Income Goal Planner and native exports
         run: |
           set -euo pipefail
