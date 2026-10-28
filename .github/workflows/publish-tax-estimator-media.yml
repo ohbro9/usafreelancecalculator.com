@@ -1,0 +1,74 @@
+name: Publish verified Tax Estimator tutorial media
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'asset-staging/tax-estimator-2026.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tax-estimator-2026-assets
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[tax-media-published]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify original ZIP checksum and extract all media
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from collections import Counter
+          import hashlib
+          import zipfile
+
+          bundle = Path('asset-staging/tax-estimator-2026.zip')
+          expected_sha = '5e0adfe296ee72e4d58532c40643372c776d266f965270da77066567447ae3a8'
+          if not bundle.is_file():
+              raise SystemExit('Upload tax-estimator-2026.zip to asset-staging first.')
+          actual_sha = hashlib.sha256(bundle.read_bytes()).hexdigest()
+          if actual_sha != expected_sha:
+              raise SystemExit('ZIP SHA-256 mismatch: this is not the verified 31-file package.')
+
+          target = Path('assets/guides/tax-estimator-2026')
+          with zipfile.ZipFile(bundle) as archive:
+              files = [item for item in archive.infolist() if not item.is_dir()]
+              names = [item.filename for item in files]
+              if len(names) != 31 or len(names) != len(set(names)):
+                  raise SystemExit('Expected exactly 31 unique media files.')
+              kinds = Counter(Path(name).suffix.lower() for name in names)
+              if kinds != {'.webp': 27, '.png': 1, '.pdf': 3}:
+                  raise SystemExit(f'Unexpected file types/counts: {kinds}')
+              if any('/' in name or '\\' in name or name.startswith('.') for name in names):
+                  raise SystemExit('ZIP must contain only flat, named media files.')
+              if any(item.file_size > 3_000_000 for item in files):
+                  raise SystemExit('Unexpected large asset in ZIP.')
+              target.mkdir(parents=True, exist_ok=True)
+              for item in files:
+                  content = archive.read(item)
+                  (target / item.filename).write_bytes(content)
+                  print(f'Published {item.filename} ({len(content)} bytes)')
+          print('Verified exact archive SHA-256; extracted 27 WebP + 1 PNG + 3 PDF.')
+          PY
+      - name: Commit verified assets and remove staging ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- assets/guides/tax-estimator-2026
+          git rm -- asset-staging/tax-estimator-2026.zip
+          git diff --cached --quiet && exit 0
+          git commit -m 'assets: publish 31 Tax Estimator originals [tax-media-published]'
+          git push origin HEAD:main
